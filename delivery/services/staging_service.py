@@ -1,8 +1,10 @@
 
 import logging
-import threading
 import os
 import signal
+
+from tornado.ioloop import IOLoop
+
 
 from delivery.models.db_models import StagingStatus
 from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException
@@ -37,6 +39,9 @@ class StagingService(object):
         self.staging_repo = staging_repo
         self.runfolder_repo = runfolder_repo
         self.session_factory = session_factory
+        # Note if you want to test this class without having a actual tornado
+        # IOLoop instantiated you you need to mock this.
+        self.io_loop_factory = IOLoop.current
 
     @staticmethod
     def _copy_dir(staging_order_id, external_program_service, session_factory, staging_repo):
@@ -50,6 +55,7 @@ class StagingService(object):
         :param staging_repo: A instance of DatabaseBasedStagingRepository
         :return: None, only reports back through side-effects
         """
+
         session = session_factory()
 
         # This is a somewhat hacky work-around to the problem that objects created in one
@@ -104,18 +110,14 @@ class StagingService(object):
             stage_order.status = StagingStatus.staging_in_progress
             session.commit()
 
-            thread = threading.Thread(target=StagingService._copy_dir,
-                                      kwargs={"staging_order_id": stage_order.id,
-                                              "external_program_service": self.external_program_service,
-                                              "staging_repo": self.staging_repo,
-                                              "session_factory": self.session_factory})
+            args_for_copy_dir = {"staging_order_id": stage_order.id,
+                                 "external_program_service": self.external_program_service,
+                                 "staging_repo": self.staging_repo,
+                                 "session_factory": self.session_factory}
 
-            # When only daemon threads remain, kill them and exit
-            # This should hopefully mean that if the rest of the
-            # application is terminated for some reason, there
-            # should be no zombie threads left laying around...
-            thread.setDaemon(True)
-            thread.start()
+            self.io_loop_factory().spawn_callback(StagingService._copy_dir,
+                                                  **args_for_copy_dir)
+
 
         # TODO Better error handling
         except Exception as e:
