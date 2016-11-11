@@ -24,6 +24,14 @@ class StagingService(object):
     # And if we do so we need to make sure that the Staging service
     # acts as a singleton, look at:
     # http://python-3-patterns-idioms-test.readthedocs.io/en/latest/Singleton.html
+    #
+    # Alternative suggestion from Steinar on how to solve the problem, which is probably better:
+    # "Do you mean to ensure that only one thread tries doing that at a time? An idea could
+    #  be to take a database lock to ensure this, i.e. fetch all objects in the unfinished
+    #  state, restart them, change the status and then commit, locking the sqlite database
+    #  briefly while doing so (I think row level locking is limited in sqlite.)"
+    #  / JD 20161111
+
 
     def __init__(self, staging_dir, external_program_service, staging_repo, runfolder_repo, session_factory):
         """
