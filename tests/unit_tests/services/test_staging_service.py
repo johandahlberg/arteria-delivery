@@ -13,6 +13,13 @@ from tests.test_utils import FAKE_RUNFOLDERS, assert_eventually_equals
 
 class TestStagingService(unittest.TestCase):
 
+    class MockIOLoop():
+        def __init__(self):
+            pass
+
+        def spawn_callback(self, f, **args):
+            f(**args)
+
     class MockExternalRunnerService():
 
         def __init__(self, return_status=0, throw=False):
@@ -51,6 +58,7 @@ class TestStagingService(unittest.TestCase):
                                               mock_staging_repo,
                                               self.mock_runfolder_repo,
                                               mock_db_session_factory)
+        self.staging_service.io_loop_factory = self.MockIOLoop
 
     # A StagingService should be able to:
     # - Stage a staging order

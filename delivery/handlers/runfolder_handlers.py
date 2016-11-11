@@ -2,23 +2,14 @@
 from delivery.handlers.utility_handlers import ArteriaDeliveryBaseHandler
 
 
-class RunfolderBaseHandler(ArteriaDeliveryBaseHandler):
-    """
-    Base handler for handlers concerned with runfolders.
-    """
-
-    def initialize(self, **kwargs):
-        self.runfolder_repo = kwargs["runfolder_repo"]
-        super(RunfolderBaseHandler, self).initialize(kwargs)
-
-
-class RunfolderHandler(RunfolderBaseHandler):
+class RunfolderHandler(ArteriaDeliveryBaseHandler):
     """
     Manage runfolder resources
     """
 
     def initialize(self, **kwargs):
-        super(RunfolderHandler, self).initialize(**kwargs)
+        self.runfolder_repo = kwargs["runfolder_repo"]
+        super(RunfolderHandler, self).initialize(kwargs)
 
     def get(self):
         """
@@ -26,13 +17,13 @@ class RunfolderHandler(RunfolderBaseHandler):
         {
             "runfolders": [
                 {
-                    "path": "/home/MOLMED/johda411/workspace/arteria/arteria-delivery/tests/resources/160930_ST-E00216_0111_BH37CWALXX",
+                    "path": "/tests/resources/160930_ST-E00216_0111_BH37CWALXX",
                     "name": "160930_ST-E00216_0111_BH37CWALXX",
                     "projects": [
                         {
-                            "path": "/home/MOLMED/johda411/workspace/arteria/arteria-delivery/tests/resources/160930_ST-E00216_0111_BH37CWALXX/Projects/ABC_123",
+                            "path": "/tests/resources/160930_ST-E00216_0111_BH37CWALXX/Projects/ABC_123",
                             "name": "ABC_123",
-                            "runfolder_path": "/home/MOLMED/johda411/workspace/arteria/arteria-delivery/tests/resources/160930_ST-E00216_0111_BH37CWALXX"
+                            "runfolder_path": "/tests/resources/160930_ST-E00216_0111_BH37CWALXX"
                         }
                     ]
                 }

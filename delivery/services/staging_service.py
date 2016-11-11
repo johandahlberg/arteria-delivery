@@ -1,8 +1,10 @@
 
 import logging
-import threading
 import os
 import signal
+
+from tornado.ioloop import IOLoop
+
 
 from delivery.models.db_models import StagingStatus
 from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException
@@ -22,6 +24,14 @@ class StagingService(object):
     # And if we do so we need to make sure that the Staging service
     # acts as a singleton, look at:
     # http://python-3-patterns-idioms-test.readthedocs.io/en/latest/Singleton.html
+    #
+    # Alternative suggestion from Steinar on how to solve the problem, which is probably better:
+    # "Do you mean to ensure that only one thread tries doing that at a time? An idea could
+    #  be to take a database lock to ensure this, i.e. fetch all objects in the unfinished
+    #  state, restart them, change the status and then commit, locking the sqlite database
+    #  briefly while doing so (I think row level locking is limited in sqlite.)"
+    #  / JD 20161111
+
 
     def __init__(self, staging_dir, external_program_service, staging_repo, runfolder_repo, session_factory):
         """
@@ -37,6 +47,9 @@ class StagingService(object):
         self.staging_repo = staging_repo
         self.runfolder_repo = runfolder_repo
         self.session_factory = session_factory
+        # Note if you want to test this class without having a actual tornado
+        # IOLoop instantiated you you need to mock this.
+        self.io_loop_factory = IOLoop.current
 
     @staticmethod
     def _copy_dir(staging_order_id, external_program_service, session_factory, staging_repo):
@@ -50,6 +63,7 @@ class StagingService(object):
         :param staging_repo: A instance of DatabaseBasedStagingRepository
         :return: None, only reports back through side-effects
         """
+
         session = session_factory()
 
         # This is a somewhat hacky work-around to the problem that objects created in one
@@ -69,11 +83,9 @@ class StagingService(object):
 
             if execution_result.status_code == 0:
                 staging_order.status = StagingStatus.staging_successful
-                session.commit()
                 log.info("Successfully staged: {}".format(staging_order))
             else:
                 staging_order.status = StagingStatus.staging_failed
-                session.commit()
                 log.info("Failed in staging: {} because rsync returned exit code: {}".
                          format(staging_order, execution_result.status_code))
 
@@ -104,18 +116,14 @@ class StagingService(object):
             stage_order.status = StagingStatus.staging_in_progress
             session.commit()
 
-            thread = threading.Thread(target=StagingService._copy_dir,
-                                      kwargs={"staging_order_id": stage_order.id,
-                                              "external_program_service": self.external_program_service,
-                                              "staging_repo": self.staging_repo,
-                                              "session_factory": self.session_factory})
+            args_for_copy_dir = {"staging_order_id": stage_order.id,
+                                 "external_program_service": self.external_program_service,
+                                 "staging_repo": self.staging_repo,
+                                 "session_factory": self.session_factory}
 
-            # When only daemon threads remain, kill them and exit
-            # This should hopefully mean that if the rest of the
-            # application is terminated for some reason, there
-            # should be no zombie threads left laying around...
-            thread.setDaemon(True)
-            thread.start()
+            self.io_loop_factory().spawn_callback(StagingService._copy_dir,
+                                                  **args_for_copy_dir)
+
 
         # TODO Better error handling
         except Exception as e:

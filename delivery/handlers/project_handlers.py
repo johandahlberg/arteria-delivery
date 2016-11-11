@@ -1,4 +1,5 @@
 
+from delivery.handlers import *
 from delivery.handlers.utility_handlers import ArteriaDeliveryBaseHandler
 from delivery.repositories.project_repository import ProjectRepository
 
@@ -60,4 +61,4 @@ class ProjectsForRunfolderHandler(ProjectBaseHandler):
             projects = runfolder.projects
             self.write_list_of_models_as_json(projects, key="projects")
         else:
-            self.send_error(status_code=404)
+            self.send_error(status_code=NOT_FOUND)
