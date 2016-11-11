@@ -26,13 +26,13 @@ class RunfolderHandler(RunfolderBaseHandler):
         {
             "runfolders": [
                 {
-                    "path": "/home/MOLMED/johda411/workspace/arteria/arteria-delivery/tests/resources/160930_ST-E00216_0111_BH37CWALXX",
+                    "path": "/tests/resources/160930_ST-E00216_0111_BH37CWALXX",
                     "name": "160930_ST-E00216_0111_BH37CWALXX",
                     "projects": [
                         {
-                            "path": "/home/MOLMED/johda411/workspace/arteria/arteria-delivery/tests/resources/160930_ST-E00216_0111_BH37CWALXX/Projects/ABC_123",
+                            "path": "/tests/resources/160930_ST-E00216_0111_BH37CWALXX/Projects/ABC_123",
                             "name": "ABC_123",
-                            "runfolder_path": "/home/MOLMED/johda411/workspace/arteria/arteria-delivery/tests/resources/160930_ST-E00216_0111_BH37CWALXX"
+                            "runfolder_path": "/tests/resources/160930_ST-E00216_0111_BH37CWALXX"
                         }
                     ]
                 }
