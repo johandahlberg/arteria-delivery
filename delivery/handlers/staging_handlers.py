@@ -3,6 +3,8 @@ import logging
 
 from arteria.web.handlers import BaseRestHandler
 
+from delivery.handlers import *
+
 log = logging.getLogger(__name__)
 
 
@@ -59,7 +61,7 @@ class StagingRunfolderHandler(BaseRestHandler):
                                                                        self.reverse_url("stage_status", order_id)),
                                 staging_order_ids)
 
-        self.set_status(202)
+        self.set_status(ACCEPTED)
         self.write_json({'staging_order_links': status_end_points})
 
 
@@ -81,7 +83,7 @@ class StagingHandler(BaseRestHandler):
         if status:
             self.write_json({'status': status.name})
         else:
-            self.set_status(404, reason='No stage order with id: {} found.'.format(stage_id))
+            self.set_status(NOT_FOUND, reason='No stage order with id: {} found.'.format(stage_id))
 
     def delete(self, stage_id):
         """
@@ -90,9 +92,10 @@ class StagingHandler(BaseRestHandler):
         """
         was_killed = self.staging_service.kill_process_of_stage_order(stage_id)
         if was_killed:
-            self.set_status(204)
+            self.set_status(NO_CONTENT)
         else:
-            self.set_status(500, reason="Could not kill stage order with id: {}, either it wasn't in a state "
-                                        "which allows it to be killed, or the pid associated with the stage order "
-                                        "did not allow itself to be killed. Consult the server logs for an exact "
-                                        "reason.")
+            self.set_status(INTERNAL_SERVER_ERROR,
+                            reason="Could not kill stage order with id: {}, either it wasn't in a state "
+                                   "which allows it to be killed, or the pid associated with the stage order "
+                                   "did not allow itself to be killed. Consult the server logs for an exact "
+                                   "reason.")
