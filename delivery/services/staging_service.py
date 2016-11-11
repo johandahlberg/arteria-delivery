@@ -83,11 +83,9 @@ class StagingService(object):
 
             if execution_result.status_code == 0:
                 staging_order.status = StagingStatus.staging_successful
-                session.commit()
                 log.info("Successfully staged: {}".format(staging_order))
             else:
                 staging_order.status = StagingStatus.staging_failed
-                session.commit()
                 log.info("Failed in staging: {} because rsync returned exit code: {}".
                          format(staging_order, execution_result.status_code))
 
