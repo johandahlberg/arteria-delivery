@@ -1,7 +1,7 @@
 Arteria delivery
 =================
 
-A self contained (Tornado) REST service that checks performs deliveries
+A self contained (Tornado) REST service that performs deliveries.
 
 Trying it out
 -------------
