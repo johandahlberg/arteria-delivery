@@ -4,6 +4,8 @@ import logging
 from arteria.web.handlers import BaseRestHandler
 
 from delivery.handlers import *
+from delivery.exceptions import ProjectNotFoundException
+
 
 log = logging.getLogger(__name__)
 
@@ -53,16 +55,21 @@ class StagingRunfolderHandler(BaseRestHandler):
         except ValueError:
             request_data = {}
 
-        projects_to_stage = request_data.get("projects", [])
+        try:
+            projects_to_stage = request_data.get("projects", [])
 
-        staging_order_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
-        status_end_points = map(lambda order_id: "{0}://{1}{2}".format(self.request.protocol,
-                                                                       self.request.host,
-                                                                       self.reverse_url("stage_status", order_id)),
-                                staging_order_ids)
+            log.debug("Got the following projects to stage: {}".format(projects_to_stage))
 
-        self.set_status(ACCEPTED)
-        self.write_json({'staging_order_links': status_end_points})
+            staging_order_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
+            status_end_points = map(lambda order_id: "{0}://{1}{2}".format(self.request.protocol,
+                                                                           self.request.host,
+                                                                           self.reverse_url("stage_status", order_id)),
+                                    staging_order_ids)
+
+            self.set_status(ACCEPTED)
+            self.write_json({'staging_order_links': status_end_points})
+        except ProjectNotFoundException as e:
+            self.set_status(NOT_FOUND, reason=e.msg)
 
 
 class StagingHandler(BaseRestHandler):

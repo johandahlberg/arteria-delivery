@@ -4,7 +4,7 @@ import time
 import random
 import signal
 
-from delivery.exceptions import InvalidStatusException, RunfolderNotFoundException
+from delivery.exceptions import InvalidStatusException, RunfolderNotFoundException, ProjectNotFoundException
 from delivery.services.staging_service import StagingService
 from delivery.models.db_models import StagingOrder, StagingStatus
 from delivery.models.execution import ExecutionResult, Execution
@@ -132,6 +132,10 @@ class TestStagingService(unittest.TestCase):
         result = self.staging_service.stage_runfolder(
             runfolder_id=runfolder1.name, projects_to_stage=[])
         self.assertEqual(result, map(lambda x: x.id, mock_staging_repo.orders_state))
+
+        # - Reject stating a runfolder if the given projects is not available
+        with self.assertRaises(ProjectNotFoundException):
+            self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=['foo'])
 
     # - Reject staging a runfolder which does not exist runfolder
     def test_stage_runfolder_does_not_exist(self):

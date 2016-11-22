@@ -7,7 +7,7 @@ from tornado.ioloop import IOLoop
 
 
 from delivery.models.db_models import StagingStatus
-from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException
+from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException, ProjectNotFoundException
 
 log = logging.getLogger(__name__)
 
@@ -131,6 +131,11 @@ class StagingService(object):
             session.commit()
             raise e
 
+    def _validate_project_lists(self, projects_on_runfolder, projects_to_stage):
+        projects_to_stage_set = set(projects_to_stage)
+        projects_on_runfolder_set = set(projects_on_runfolder)
+        return projects_to_stage_set.issubset(projects_on_runfolder_set)
+
     def stage_runfolder(self, runfolder_id, projects_to_stage=None):
         """
         Stage a runfolder
@@ -147,13 +152,22 @@ class StagingService(object):
             raise RunfolderNotFoundException(
                 "Couldn't find runfolder matching: {}".format(runfolder_id))
 
+        names_of_project_on_runfolder = map(lambda x: x.name, runfolder.projects)
+
         # If no projects have been specified, stage all projects
         if not projects_to_stage:
-            projects_to_stage = runfolder.projects
+            projects_to_stage = names_of_project_on_runfolder
+
+
+        log.debug("Projects to stage: {}".format(projects_to_stage))
+
+        if not self._validate_project_lists(names_of_project_on_runfolder, projects_to_stage):
+            raise ProjectNotFoundException("Projects to stage: {} do not match projects on runfolder: {}".
+                                           format(projects_to_stage, names_of_project_on_runfolder))
 
         stage_order_ids = []
         for project in runfolder.projects:
-            if project in projects_to_stage:
+            if project.name in projects_to_stage:
                 # TODO Verify that there is no currently ongoing staging order before
                 # creating a new one...
 
