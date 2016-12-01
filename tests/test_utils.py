@@ -8,12 +8,14 @@ from delivery.models.project import Project
 from delivery.models.runfolder import Runfolder
 from delivery.services.external_program_service import ExecutionResult, Execution
 
+
 class MockIOLoop():
     def __init__(self):
         pass
 
     def spawn_callback(self, f, **args):
         f(**args)
+
 
 class MockExternalRunnerService():
 

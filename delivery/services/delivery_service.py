@@ -59,7 +59,7 @@ class MoverDeliveryService(object):
             # Always commit the state change to the database
             session.commit()
 
-    def deliver_by_staging_id(self, staging_id, delivery_project):
+    def deliver_by_staging_id(self, staging_id, delivery_project, md5sum_file):
 
         stage_order = self.staging_service.get_stage_order_by_id(staging_id)
         if not stage_order or not stage_order.status == StagingStatus.staging_successful:
@@ -70,7 +70,8 @@ class MoverDeliveryService(object):
         delivery_order = self.delivery_repo.create_delivery_order(delivery_source=stage_order.staging_target,
                                                                   delivery_project=delivery_project,
                                                                   delivery_status=DeliveryStatus.pending,
-                                                                  staging_order_id=staging_id)
+                                                                  staging_order_id=staging_id,
+                                                                  md5sum_file=md5sum_file)
 
         args_for_run_mover = {'delivery_order_id': delivery_order.id,
                               'delivery_order_repo': self.delivery_repo,
