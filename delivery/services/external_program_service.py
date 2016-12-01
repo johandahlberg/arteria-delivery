@@ -1,7 +1,10 @@
 
 import subprocess
+import logging
 
 from delivery.models.execution import ExecutionResult, Execution
+
+log = logging.getLogger(__name__)
 
 
 class ExternalProgramService(object):
@@ -16,6 +19,7 @@ class ExternalProgramService(object):
         :param cmd: the command to run as a list, i.e. ['ls','-l', '/']
         :return: A instance of Execution
         """
+        log.debug("Running command: {}".format(" ".join(cmd)))
         p = subprocess.Popen(cmd,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
