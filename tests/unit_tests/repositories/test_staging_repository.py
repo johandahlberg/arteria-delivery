@@ -1,13 +1,14 @@
 
 
 import unittest
-
+from mock import create_autospec
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from delivery.models.db_models import SQLAlchemyBase, StagingOrder, StagingStatus
 from delivery.repositories.staging_repository import DatabaseBasedStagingRepository
+from delivery.services.file_system_service import FileSystemService
 
 
 class TestStagingRepository(unittest.TestCase):
@@ -32,8 +33,11 @@ class TestStagingRepository(unittest.TestCase):
 
         self.session.commit()
 
+        mock_file_system_service = create_autospec(FileSystemService)
+        mock_file_system_service.basename.return_value = 'foo'
+
         # Prep the repo
-        self.staging_repo = DatabaseBasedStagingRepository(session_factory)
+        self.staging_repo = DatabaseBasedStagingRepository(session_factory, mock_file_system_service)
 
     ###
     # A database backed staging repository should able to:
