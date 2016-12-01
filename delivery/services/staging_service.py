@@ -83,7 +83,7 @@ class StagingService(object):
 
             if execution_result.status_code == 0:
                 staging_order.status = StagingStatus.staging_successful
-                log.info("Successfully staged: {}".format(staging_order))
+                log.info("Successfully staged: {} to: {}".format(staging_order, staging_order.get_staging_path()))
             else:
                 staging_order.status = StagingStatus.staging_failed
                 log.info("Failed in staging: {} because rsync returned exit code: {}".

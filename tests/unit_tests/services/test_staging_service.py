@@ -42,6 +42,7 @@ class TestStagingService(unittest.TestCase):
     def setUp(self):
         self.staging_order1 = StagingOrder(id=1,
                                            source='/test/this',
+                                           staging_target='/foo',
                                            status=StagingStatus.pending)
 
         mock_external_runner_service = self.MockExternalRunnerService()

@@ -1,8 +1,8 @@
 
-from sqlalchemy import Column, Integer, String, Enum
+import os
 import enum as base_enum
 
-
+from sqlalchemy import Column, Integer, String, Enum
 from sqlalchemy.ext.declarative import declarative_base
 
 """
@@ -49,6 +49,9 @@ class StagingOrder(SQLAlchemyBase):
     # The pid of the processes which is carrying out the staging, alternatively which
     # which did do it if the status is no longer in progress.
     pid = Column(Integer)
+
+    def get_staging_path(self):
+        return os.path.join(self.staging_target, os.path.basename(os.path.abspath(self.source)))
 
     def __repr__(self):
         return "Staging order: {id: %s, source: %s, status: %s, pid: %s }" % (str(self.id),
