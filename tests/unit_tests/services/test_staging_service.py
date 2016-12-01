@@ -1,43 +1,14 @@
 import unittest
 import mock
-import time
-import random
 import signal
 
 from delivery.exceptions import InvalidStatusException, RunfolderNotFoundException, ProjectNotFoundException
 from delivery.services.staging_service import StagingService
 from delivery.models.db_models import StagingOrder, StagingStatus
-from delivery.models.execution import ExecutionResult, Execution
-from tests.test_utils import FAKE_RUNFOLDERS, assert_eventually_equals
+from tests.test_utils import FAKE_RUNFOLDERS, assert_eventually_equals, MockIOLoop, MockExternalRunnerService
 
 
 class TestStagingService(unittest.TestCase):
-
-    class MockIOLoop():
-        def __init__(self):
-            pass
-
-        def spawn_callback(self, f, **args):
-            f(**args)
-
-    class MockExternalRunnerService():
-
-        def __init__(self, return_status=0, throw=False):
-            self.return_status = return_status
-            self.throw = throw
-
-        def run(self, cmd):
-            if self.throw:
-                raise Exception("Test the exception handling...")
-            mock_process = mock.MagicMock()
-            execution = Execution(pid=random.randint(1, 1000), process_obj=mock_process)
-            return execution
-
-        def wait_for_execution(self, execution):
-            time.sleep(0.1)
-            return ExecutionResult(status_code=self.return_status,
-                                   stderr="stderr",
-                                   stdout="stdout")
 
     def setUp(self):
         self.staging_order1 = StagingOrder(id=1,
@@ -45,7 +16,7 @@ class TestStagingService(unittest.TestCase):
                                            staging_target='/foo',
                                            status=StagingStatus.pending)
 
-        mock_external_runner_service = self.MockExternalRunnerService()
+        mock_external_runner_service = MockExternalRunnerService()
         mock_staging_repo = mock.MagicMock()
         mock_staging_repo.get_staging_order_by_id.return_value = self.staging_order1
         mock_staging_repo.create_staging_order.return_value = self.staging_order1
@@ -59,7 +30,7 @@ class TestStagingService(unittest.TestCase):
                                               mock_staging_repo,
                                               self.mock_runfolder_repo,
                                               mock_db_session_factory)
-        self.staging_service.io_loop_factory = self.MockIOLoop
+        self.staging_service.io_loop_factory = MockIOLoop
 
     # A StagingService should be able to:
     # - Stage a staging order
@@ -73,7 +44,7 @@ class TestStagingService(unittest.TestCase):
 
     # - Set status to failed if rsyncing is not successful
     def test_unsuccessful_staging_order(self):
-        mock_external_runner_service = self.MockExternalRunnerService(return_status=1)
+        mock_external_runner_service = MockExternalRunnerService(return_status=1)
         self.staging_service.external_program_service = mock_external_runner_service
 
         self.staging_service.stage_order(stage_order=self.staging_order1)
@@ -85,7 +56,7 @@ class TestStagingService(unittest.TestCase):
 
     # - Set status to failed if there is an exception is not successful
     def test_exception_in_staging_order(self):
-        mock_external_runner_service = self.MockExternalRunnerService(throw=True)
+        mock_external_runner_service = MockExternalRunnerService(throw=True)
         self.staging_service.external_program_service = mock_external_runner_service
 
         self.staging_service.stage_order(stage_order=self.staging_order1)
