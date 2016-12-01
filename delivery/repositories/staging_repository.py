@@ -82,8 +82,8 @@ class DatabaseBasedStagingRepository(object):
 
         staging_target = os.path.join(staging_target_dir,
                                       "{}_{}".format(
-                                                order.id,
-                                                source_base_name))
+                                          order.id,
+                                          source_base_name))
 
         log.debug("Set the staging target to: {}".format(staging_target))
 

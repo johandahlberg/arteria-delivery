@@ -69,5 +69,3 @@ class DatabaseBasedDeliveriesRepository(object):
         self.session.commit()
 
         return order
-
-

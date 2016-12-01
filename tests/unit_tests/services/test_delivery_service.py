@@ -54,7 +54,6 @@ class TestMoverDeliveryService(unittest.TestCase):
                                                               delivery_project='foo',
                                                               md5sum_file='md5sum_file')
 
-
     def test_deliver_by_staging_id_raises_on_non_successful_stage_id(self):
 
         staging_order = StagingOrder()

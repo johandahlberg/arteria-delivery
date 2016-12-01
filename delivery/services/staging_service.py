@@ -32,7 +32,6 @@ class StagingService(object):
     #  briefly while doing so (I think row level locking is limited in sqlite.)"
     #  / JD 20161111
 
-
     def __init__(self, staging_dir, external_program_service, staging_repo, runfolder_repo, session_factory):
         """
         Instantiate a new StagingService
@@ -124,7 +123,6 @@ class StagingService(object):
             self.io_loop_factory().spawn_callback(StagingService._copy_dir,
                                                   **args_for_copy_dir)
 
-
         # TODO Better error handling
         except Exception as e:
             stage_order.status = StagingStatus.staging_failed
@@ -157,7 +155,6 @@ class StagingService(object):
         # If no projects have been specified, stage all projects
         if not projects_to_stage:
             projects_to_stage = names_of_project_on_runfolder
-
 
         log.debug("Projects to stage: {}".format(projects_to_stage))
 

@@ -29,6 +29,7 @@ class DeliverByStageIdHandler(ArteriaDeliveryBaseHandler):
 
 
 class DeliveryStatusHandler(ArteriaDeliveryBaseHandler):
+
     def initialize(self, **kwargs):
         self.delivery_service = kwargs["delivery_service"]
         super(DeliverByStageIdHandler, self).initialize(kwargs)

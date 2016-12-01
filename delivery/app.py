@@ -12,7 +12,7 @@ from arteria.web.app import AppService
 from delivery.handlers.utility_handlers import VersionHandler
 from delivery.handlers.runfolder_handlers import RunfolderHandler
 from delivery.handlers.project_handlers import ProjectHandler, ProjectsForRunfolderHandler
-from delivery.handlers.delivery_handlers import DeliverByStageIdHandler,DeliveryStatusHandler
+from delivery.handlers.delivery_handlers import DeliverByStageIdHandler, DeliveryStatusHandler
 from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingHandler
 
 from delivery.repositories.runfolder_repository import FileSystemBasedRunfolderRepository

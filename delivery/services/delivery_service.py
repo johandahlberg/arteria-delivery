@@ -18,7 +18,6 @@ class MoverDeliveryService(object):
         self.session_factory = session_factory
         self.io_loop_factory = IOLoop.current
 
-
     @staticmethod
     def _run_mover(delivery_order_id, delivery_order_repo, external_program_service, session_factory):
         session = session_factory()
@@ -107,4 +106,3 @@ class MoverDeliveryService(object):
 
     def get_status_of_delivery_order(self, delivery_order_id):
         return self.get_delivery_order_by_id(delivery_order_id).delivery_status
-

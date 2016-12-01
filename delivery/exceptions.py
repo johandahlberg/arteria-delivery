@@ -6,6 +6,7 @@ class RunfolderNotFoundException(Exception):
     """
     pass
 
+
 class ProjectNotFoundException(Exception):
     """
     Should be raised when and invalid or non-existent project is searched for.
