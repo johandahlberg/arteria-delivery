@@ -43,3 +43,39 @@ class FileSystemService(object):
         :return: a generator or paths to runfolder directories
         """
         return self._list_directories(base_path)
+
+    @staticmethod
+    def isdir(path):
+        """
+        Shadows os.path.isdir
+        :param path: to check
+        :return: boolean if path is dir or not
+        """
+        return os.path.isdir(path)
+
+    @staticmethod
+    def isfile(path):
+        """
+        Shadows os.path.isfile
+        :param path: to check
+        :return: boolean if path is file or not
+        """
+        return os.path.isfile(path)
+
+    @staticmethod
+    def basename(path):
+        """
+        Shadows os.path.basename
+        :param path: to get base name for
+        :return: base name of file as per os.path.basename
+        """
+        return os.path.basename(path)
+
+    @staticmethod
+    def abspath(path):
+        """
+        Shaods os.path.abspath
+        :param path: to get abspath for
+        :return: abs path to file/dir as per os.path.abspath
+        """
+        return os.path.abspath(path)
