@@ -12,7 +12,7 @@ from arteria.web.app import AppService
 from delivery.handlers.utility_handlers import VersionHandler
 from delivery.handlers.runfolder_handlers import RunfolderHandler
 from delivery.handlers.project_handlers import ProjectHandler, ProjectsForRunfolderHandler
-from delivery.handlers.delivery_handlers import DeliverByStageIdHandler
+from delivery.handlers.delivery_handlers import DeliverByStageIdHandler,DeliveryStatusHandler
 from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingHandler
 
 from delivery.repositories.runfolder_repository import FileSystemBasedRunfolderRepository
@@ -45,9 +45,11 @@ def routes(**kwargs):
 
         url(r"/api/1.0/stage/(\d+)", StagingHandler, name="stage_status", kwargs=kwargs),
 
-        # TODO Should deliver by stage id!
         url(r"/api/1.0/deliver/stage_id/(.+)", DeliverByStageIdHandler,
-            name="delivery_runfolder", kwargs=kwargs)
+            name="delivery_by_state_id", kwargs=kwargs),
+
+        url(r"/api/1.0/deliver/status/(.+)", DeliveryStatusHandler,
+            name="delivery_status", kwargs=kwargs)
     ]
 
 

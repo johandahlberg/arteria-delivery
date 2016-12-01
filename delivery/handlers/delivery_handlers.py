@@ -28,4 +28,11 @@ class DeliverByStageIdHandler(ArteriaDeliveryBaseHandler):
         # TODO Extend this later once we know more about how this will work..
 
 
+class DeliveryStatusHandler(ArteriaDeliveryBaseHandler):
+    def initialize(self, **kwargs):
+        self.delivery_service = kwargs["delivery_service"]
+        super(DeliverByStageIdHandler, self).initialize(kwargs)
 
+    def get(self, delivery_order_id):
+        self.delivery_service.get_delivery_order_by_id(delivery_order_id)
+        # TODO Return something sensible here!
