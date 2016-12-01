@@ -1,6 +1,8 @@
 
 import logging
 
+from tornado.ioloop import IOLoop
+
 from delivery.exceptions import InvalidStatusException
 from delivery.models.db_models import StagingStatus, DeliveryStatus
 
@@ -14,6 +16,7 @@ class MoverDeliveryService(object):
         self.staging_service = staging_service
         self.delivery_repo = delivery_repo
         self.session_factory = session_factory
+        self.io_loop_factory = IOLoop.current
 
 
     @staticmethod
@@ -69,7 +72,14 @@ class MoverDeliveryService(object):
                                                                   delivery_status=DeliveryStatus.pending,
                                                                   staging_order_id=staging_id)
 
-        #TODO Start Mover process in external thread...
+        args_for_run_mover = {'delivery_order_id': delivery_order.id,
+                              'delivery_order_repo': self.delivery_repo,
+                              'external_program_service': self.external_program_service,
+                              'session_factory': self.session_factory}
+
+        self.io_loop_factory().spawn_callback(MoverDeliveryService._run_mover,
+                                              **args_for_run_mover)
+
 
 
     def get_status_of_delivery_order(self, delivery_order_id):
