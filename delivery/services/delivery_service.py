@@ -44,6 +44,8 @@ class MoverDeliveryService(object):
 
             if execution_result.status_code == 0:
                 delivery_order.delivery_status = DeliveryStatus.delivery_in_progress
+                # TODO Need to parse info about Mover id etc here!
+
                 log.info("Successfully started delivery of with Mover: {}".format(delivery_order))
             else:
                 delivery_order.delivery_status = DeliveryStatus.delivery_failed
@@ -67,7 +69,7 @@ class MoverDeliveryService(object):
                                          "Staging order was: {}".format(stage_order))
 
         # TODO Adjust staging_target to fit with exactly what we want to deliver
-        delivery_order = self.delivery_repo.create_delivery_order(delivery_source=stage_order.staging_target,
+        delivery_order = self.delivery_repo.create_delivery_order(delivery_source=stage_order.get_staging_path(),
                                                                   delivery_project=delivery_project,
                                                                   delivery_status=DeliveryStatus.pending,
                                                                   staging_order_id=staging_id,
@@ -81,6 +83,28 @@ class MoverDeliveryService(object):
         self.io_loop_factory().spawn_callback(MoverDeliveryService._run_mover,
                                               **args_for_run_mover)
 
-    def get_status_of_delivery_order(self, delivery_order_id):
+    def _run_mover_info(self, mover_delivery_order_id):
+
+        cmd = ['mover', 'info', mover_delivery_order_id]
+        result = self.external_program_service.run_and_wait(cmd)
+        # TODO Parse info about the run based on mover info
+
+        # TODO Do not return None here!
+        return None
+
+    def update_delivery_status(self, delivery_order_id):
+        delivery_order = self.get_status_of_delivery_order(delivery_order_id)
+
+        if delivery_order.mover_delivery_id and delivery_order.status == DeliveryStatus.delivery_in_progress:
+            mover_info_result = self._run_mover(delivery_order.mover_delivery_id)
+        else:
+            return delivery_order.status
+
+            # TODO If necessary update status of our corresponding delivery object.
+
+    def get_delivery_order_by_id(self, delivery_order_id):
         return self.delivery_repo.get_delivery_order_by_id(delivery_order_id)
+
+    def get_status_of_delivery_order(self, delivery_order_id):
+        return self.get_delivery_order_by_id(delivery_order_id).delivery_status
 

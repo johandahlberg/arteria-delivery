@@ -30,7 +30,7 @@ class TestMoverDeliveryService(unittest.TestCase):
 
     def test_deliver_by_staging_id(self):
 
-        staging_order = StagingOrder()
+        staging_order = StagingOrder(source='/foo/bar', staging_target='/staging/dir/bar')
         staging_order.status = StagingStatus.staging_successful
         self.mock_staging_service.get_stage_order_by_id.return_value = staging_order
 
@@ -76,4 +76,15 @@ class TestMoverDeliveryService(unittest.TestCase):
                                        md5sum_file='file')
         self.mock_delivery_repo.get_delivery_order_by_id.return_value = delivery_order
         actual = self.mover_delivery_service.get_status_of_delivery_order(1)
+        self.assertEqual(actual, DeliveryStatus.mover_processing_delivery)
+
+    def test_delivery_order_by_id(self):
+        delivery_order = DeliveryOrder(id=1,
+                                       delivery_source='src',
+                                       delivery_project='xyz123',
+                                       delivery_status=DeliveryStatus.mover_processing_delivery,
+                                       staging_order_id=11,
+                                       md5sum_file='file')
+        self.mock_delivery_repo.get_delivery_order_by_id.return_value = delivery_order
+        actual = self.mover_delivery_service.get_delivery_order_by_id(1)
         self.assertEqual(actual.id, 1)
