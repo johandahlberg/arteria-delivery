@@ -1,9 +1,13 @@
 
 import os
+import logging
 
 from sqlalchemy.orm.exc import NoResultFound
 
 from delivery.models.db_models import StagingOrder
+from delivery.services.file_system_service import FileSystemService
+
+log = logging.getLogger(__name__)
 
 
 class DatabaseBasedStagingRepository(object):
@@ -12,12 +16,16 @@ class DatabaseBasedStagingRepository(object):
     to the database, and fetch them based on different factors.
     """
 
-    def __init__(self, session_factory):
+    def __init__(self, session_factory, file_system_service=FileSystemService()):
         """
         Instantiate a new DatabaseBasedStagingRepository
         :param session_factory: factory method which can produce new sqlalchemy Session objects
+        :param file_system_service: a service for accessing the file system. Mostly shadows normal
+                                    stdlib methods for accessing the file system, but this allows for easier mocking
+                                    in tests.
         """
         self.session = session_factory()
+        self.file_system_service = file_system_service
 
     def get_staging_order_by_source(self, source):
         """
@@ -62,9 +70,22 @@ class DatabaseBasedStagingRepository(object):
 
         self.session.commit()
 
+        if self.file_system_service.isfile(order.source):
+            log.debug("Order source is a file")
+            source_base_name = self.file_system_service.basename(order.source)
+        elif self.file_system_service.isdir(order.source):
+            log.debug("Order source is a dir")
+            source_base_name = self.file_system_service.basename(self.file_system_service.abspath(order.source))
+        else:
+            raise NotImplementedError("Could not parse a valid type from: {}, valid types"
+                                      " are directory and file.".format(order.source))
+
         staging_target = os.path.join(staging_target_dir,
-                                      "{}_{}".format(order.id,
-                                                     os.path.basename(order.source)))
+                                      "{}_{}".format(
+                                                order.id,
+                                                source_base_name))
+
+        log.debug("Set the staging target to: {}".format(staging_target))
 
         order.staging_target = staging_target
         self.session.commit()
