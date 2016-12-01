@@ -80,8 +80,6 @@ class MoverDeliveryService(object):
         self.io_loop_factory().spawn_callback(MoverDeliveryService._run_mover,
                                               **args_for_run_mover)
 
-
-
     def get_status_of_delivery_order(self, delivery_order_id):
-        pass
+        return self.delivery_repo.get_delivery_order_by_id(delivery_order_id)
 

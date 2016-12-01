@@ -44,5 +44,12 @@ class TestMoverDeliveryService(unittest.TestCase):
                                                               delivery_project='foo')
 
     def test_get_status_of_delivery_order(self):
-        # TODO
-        pass
+        delivery_order = DeliveryOrder(id=1,
+                                       delivery_source='src',
+                                       delivery_project='xyz123',
+                                       delivery_status=DeliveryStatus.mover_processing_delivery,
+                                       staging_order_id=11,
+                                       md5sum_file='file')
+        self.mock_delivery_repo.get_delivery_order_by_id.return_value = delivery_order
+        actual = self.mover_delivery_service.get_status_of_delivery_order(1)
+        self.assertEqual(actual.id, 1)
