@@ -64,6 +64,7 @@ class DeliveryStatus(base_enum.Enum):
 
     pending = 'pending'
 
+    mover_processing_delivery = 'mover_processing_delivery'
     delivery_in_progress = 'delivery_in_progress'
     delivery_finished = 'delivery_successful'
     delivery_failed = 'delivery_failed'
@@ -80,6 +81,17 @@ class DeliveryOrder(SQLAlchemyBase):
     id = Column(Integer, primary_key=True, autoincrement=True)
     delivery_source = Column(String, nullable=False)
     delivery_project = Column(String, nullable=False)
+
+    # Optional path to md5sum file
+    md5sum_file = Column(String)
+
+    # Process id of Mover process used to start the delivery
+    mover_pid = Column(Integer)
+
+    # Mover delivery id - the id that is needed to query mover about
+    # a delivery status
+    # TODO At this stage I don't know the type of this... /JD 20161201
+    mover_delivery_id = Column(Integer)
 
     # TODO Depending on how Mover will work we might not
     # store the delivery status here, but rather poll Mover about it...

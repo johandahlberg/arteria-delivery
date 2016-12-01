@@ -43,7 +43,12 @@ class DatabaseBasedDeliveriesRepository(object):
         """
         return self.session.query(DeliveryOrder).all()
 
-    def create_delivery_order(self, delivery_source, delivery_project, delivery_status, staging_order_id):
+    def create_delivery_order(self,
+                              delivery_source,
+                              delivery_project,
+                              delivery_status,
+                              staging_order_id,
+                              md5sum_file=None):
         """
         Create a new delivery order and commit it to the database
         :param delivery_source: the source directory to be delivered
@@ -52,12 +57,14 @@ class DatabaseBasedDeliveriesRepository(object):
         :param staging_order_id: NOTA BENE: this will need to be verified against the staging table before
                                  inserting it here, because at this point there is no validation that the
                                  value is valid!
+        :param md5sum_file: Optional path to an md5sum file that mover to check files against.
         :return: the created delivery order
         """
         order = DeliveryOrder(delivery_source=delivery_source,
                               delivery_project=delivery_project,
                               delivery_status=delivery_status,
-                              staging_order_id=staging_order_id)
+                              staging_order_id=staging_order_id,
+                              md5sum_file=md5sum_file)
         self.session.add(order)
         self.session.commit()
 

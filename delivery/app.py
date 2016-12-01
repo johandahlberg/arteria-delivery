@@ -99,7 +99,8 @@ def compose_application(config):
 
     delivery_service = MoverDeliveryService(external_program_service=external_program_service,
                                             staging_service=staging_service,
-                                            delivery_repo=delivery_repo)
+                                            delivery_repo=delivery_repo,
+                                            session_factory=session_factory)
 
     return dict(config=config,
                 runfolder_repo=runfolder_repo,
