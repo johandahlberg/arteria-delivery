@@ -204,7 +204,7 @@ class StagingService(object):
 
         exact_project = matching_project[0]
 
-        staging_order = self.staging_repo.create_staging_order(source=exact_project.name,
+        staging_order = self.staging_repo.create_staging_order(source=exact_project.path,
                                                                status=StagingStatus.pending,
                                                                staging_target_dir=self.staging_dir)
         self.stage_order(staging_order)

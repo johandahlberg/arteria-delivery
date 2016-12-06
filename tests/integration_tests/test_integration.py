@@ -3,6 +3,7 @@
 import json
 import os
 from mock import MagicMock
+from functools import partial
 
 
 from tornado.testing import *
@@ -17,6 +18,11 @@ from tests.test_utils import assert_eventually_equals
 
 
 class TestIntegration(AsyncHTTPTestCase):
+
+    def _get_delivery_status(self, link):
+        self.http_client.fetch(link, self.stop)
+        status_response = self.wait()
+        return json.loads(status_response.body)["status"]
 
     API_BASE = "/api/1.0"
 
@@ -73,15 +79,29 @@ class TestIntegration(AsyncHTTPTestCase):
 
             self.assertEqual(project, "ABC_123")
 
-            def _get_delivery_status():
-                self.http_client.fetch(link, self.stop)
-                status_response = self.wait()
-                return json.loads(status_response.body)["status"]
+            assert_eventually_equals(self,
+                                     timeout=5,
+                                     delay=1,
+                                     f=partial(self._get_delivery_status, link),
+                                     expected=StagingStatus.staging_successful.name)
+
+    def test_can_stage_project(self):
+        url = "/".join([self.API_BASE, "stage", "project", "my_test_project"])
+        response = self.fetch(url, method='POST', body='')
+        self.assertEqual(response.code, 202)
+
+        response_json = json.loads(response.body)
+
+        staging_status_links = response_json.get("staging_order_links")
+
+        for project, link in staging_status_links.iteritems():
+
+            self.assertEqual(project, "my_test_project")
 
             assert_eventually_equals(self,
                                      timeout=5,
                                      delay=1,
-                                     f=_get_delivery_status,
+                                     f=partial(self._get_delivery_status, link),
                                      expected=StagingStatus.staging_successful.name)
 
     def test_can_deliver_data(self):

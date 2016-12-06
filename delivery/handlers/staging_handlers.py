@@ -10,7 +10,15 @@ from delivery.exceptions import ProjectNotFoundException
 log = logging.getLogger(__name__)
 
 
-class StagingRunfolderHandler(BaseRestHandler):
+class BaseStagingHandler(BaseRestHandler):
+    def _construct_status_endpoint(self, status_id):
+        status_end_point = "{0}://{1}{2}".format(self.request.protocol,
+                                                 self.request.host,
+                                                 self.reverse_url("stage_status", status_id))
+        return status_end_point
+
+
+class StagingRunfolderHandler(BaseStagingHandler):
     """
     Handler class for handling how to start staging of a runfolder. Polling for status, canceling, etc can then be
     handled by the more general `StagingHandler`
@@ -62,18 +70,29 @@ class StagingRunfolderHandler(BaseRestHandler):
 
             staging_order_projects_and_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
 
-
             result = {}
             for project, status_id in staging_order_projects_and_ids.iteritems():
-                status_end_points = "{0}://{1}{2}".format(self.request.protocol,
-                                                          self.request.host,
-                                                          self.reverse_url("stage_status", status_id))
-                result[project] = status_end_points
+                result[project] = self._construct_status_endpoint(status_id)
 
             self.set_status(ACCEPTED)
             self.write_json({'staging_order_links': result})
         except ProjectNotFoundException as e:
             self.set_status(NOT_FOUND, reason=e.msg)
+
+
+class StageGeneralDirectoryHandler(BaseStagingHandler):
+
+    def initialize(self, staging_service, **kwargs):
+        self.staging_service = staging_service
+
+    def post(self, directory_name):
+        stage_order_and_id = self.staging_service.stage_directory(directory_name)
+
+        result = {}
+        for project, status_id in stage_order_and_id.iteritems():
+            result[project] = self._construct_status_endpoint(status_id)
+        self.set_status(ACCEPTED)
+        self.write_json({'staging_order_links': result})
 
 
 class StagingHandler(BaseRestHandler):

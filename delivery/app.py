@@ -13,7 +13,7 @@ from delivery.handlers.utility_handlers import VersionHandler
 from delivery.handlers.runfolder_handlers import RunfolderHandler
 from delivery.handlers.project_handlers import ProjectHandler, ProjectsForRunfolderHandler
 from delivery.handlers.delivery_handlers import DeliverByStageIdHandler, DeliveryStatusHandler
-from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingHandler
+from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingHandler, StageGeneralDirectoryHandler
 
 from delivery.repositories.runfolder_repository import FileSystemBasedRunfolderRepository
 from delivery.repositories.staging_repository import DatabaseBasedStagingRepository
@@ -40,9 +40,10 @@ def routes(**kwargs):
         url(r"/api/1.0/runfolders/(.+)/projects", ProjectsForRunfolderHandler,
             name="projects_for_runfolder", kwargs=kwargs),
 
-
         url(r"/api/1.0/stage/runfolder/(.+)", StagingRunfolderHandler,
             name="stage_runfolder", kwargs=kwargs),
+        url(r"/api/1.0/stage/project/(.+)", StageGeneralDirectoryHandler,
+            name="stage_project", kwargs=kwargs),
 
         url(r"/api/1.0/stage/(\d+)", StagingHandler, name="stage_status", kwargs=kwargs),
 
