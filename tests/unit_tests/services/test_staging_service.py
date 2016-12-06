@@ -5,16 +5,36 @@ import signal
 from delivery.exceptions import InvalidStatusException, RunfolderNotFoundException, ProjectNotFoundException
 from delivery.services.staging_service import StagingService
 from delivery.models.db_models import StagingOrder, StagingStatus
+from delivery.models.project import GeneralProject
 from tests.test_utils import FAKE_RUNFOLDERS, assert_eventually_equals, MockIOLoop, MockExternalRunnerService
 
 
 class TestStagingService(unittest.TestCase):
+
+    class MockStagingRepo:
+
+        def __init__(self):
+            self.orders_state = []
+
+        def get_staging_order_by_id(self, identifier, custom_session=None):
+            return filter(lambda x: x.id == identifier, self.orders_state)[0]
+
+        def create_staging_order(self, source, status, staging_target_dir):
+
+            order = StagingOrder(id=len(self.orders_state) + 1,
+                                 source=source,
+                                 status=status,
+                                 staging_target=staging_target_dir)
+            self.orders_state.append(order)
+            return order
 
     def setUp(self):
         self.staging_order1 = StagingOrder(id=1,
                                            source='/test/this',
                                            staging_target='/foo',
                                            status=StagingStatus.pending)
+
+        self.mock_general_project_repo = mock.MagicMock()
 
         mock_external_runner_service = MockExternalRunnerService()
         mock_staging_repo = mock.MagicMock()
@@ -25,11 +45,12 @@ class TestStagingService(unittest.TestCase):
 
         mock_db_session_factory = mock.MagicMock()
 
-        self.staging_service = StagingService("/tmp",
-                                              mock_external_runner_service,
-                                              mock_staging_repo,
-                                              self.mock_runfolder_repo,
-                                              mock_db_session_factory)
+        self.staging_service = StagingService(staging_dir="/tmp",
+                                              external_program_service=mock_external_runner_service,
+                                              staging_repo=mock_staging_repo,
+                                              runfolder_repo=self.mock_runfolder_repo,
+                                              session_factory=mock_db_session_factory,
+                                              project_dir_repo=self.mock_general_project_repo)
         self.staging_service.io_loop_factory = MockIOLoop
 
     # A StagingService should be able to:
@@ -77,27 +98,10 @@ class TestStagingService(unittest.TestCase):
 
     # - Be able to stage a existing runfolder
     def test_stage_runfolder(self):
-
-        class MockStagingRepo:
-
-            orders_state = []
-
-            def get_staging_order_by_id(self, identifier, custom_session=None):
-                return filter(lambda x: x.id == identifier, self.orders_state)[0]
-
-            def create_staging_order(self, source, status, staging_target_dir):
-
-                order = StagingOrder(id=len(self.orders_state) + 1,
-                                     source=source,
-                                     status=status,
-                                     staging_target=staging_target_dir)
-                self.orders_state.append(order)
-                return order
-
         runfolder1 = FAKE_RUNFOLDERS[0]
 
         self.mock_runfolder_repo.get_runfolder.return_value = runfolder1
-        mock_staging_repo = MockStagingRepo()
+        mock_staging_repo = self.MockStagingRepo()
 
         self.staging_service.staging_repo = mock_staging_repo
 
@@ -117,6 +121,26 @@ class TestStagingService(unittest.TestCase):
 
             self.mock_runfolder_repo.get_runfolder.return_value = None
             self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=[])
+
+    # - Stage a 'general' directory if it exists
+    def test_stage_directory(self):
+        mock_staging_repo = self.MockStagingRepo()
+
+        self.staging_service.staging_repo = mock_staging_repo
+
+        self.mock_general_project_repo.get_projects.return_value = [GeneralProject(name='foo', path='/bar/foo'),
+                                                                    GeneralProject(name='bar', path='/bar/foo')]
+
+        expected = {'foo': 1}
+        result = self.staging_service.stage_directory('foo')
+        self.assertDictEqual(expected, result)
+
+
+    # - Reject staging a directory that does not exist...
+    def test_stage_directory_does_not_exist(self):
+        with self.assertRaises(ProjectNotFoundException):
+            self.mock_general_project_repo.get_projects.return_value = []
+            self.staging_service.stage_directory('foo')
 
     # - Be able to get the status of a stage order
     def test_get_status_or_stage_order(self):

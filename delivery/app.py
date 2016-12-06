@@ -18,6 +18,7 @@ from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingH
 from delivery.repositories.runfolder_repository import FileSystemBasedRunfolderRepository
 from delivery.repositories.staging_repository import DatabaseBasedStagingRepository
 from delivery.repositories.deliveries_repository import DatabaseBasedDeliveriesRepository
+from delivery.repositories.project_repository import GeneralProjectRepository
 
 from delivery.services.delivery_service import MoverDeliveryService
 from delivery.services.external_program_service import ExternalProgramService
@@ -78,7 +79,8 @@ def compose_application(config):
     :return: a dictionary with references to any relevant resources
     """
     runfolder_repo = FileSystemBasedRunfolderRepository(
-        config["monitored_directory"])
+        config["runfolder_directory"])
+    general_project_repo = GeneralProjectRepository(root_directory=config['general_project_directory'])
     external_program_service = ExternalProgramService()
 
     db_connection_string = config["db_connection_string"]
@@ -93,6 +95,7 @@ def compose_application(config):
 
     staging_service = StagingService(external_program_service=external_program_service,
                                      runfolder_repo=runfolder_repo,
+                                     project_dir_repo=general_project_repo,
                                      staging_repo=staging_repo,
                                      staging_dir=config["staging_directory"],
                                      session_factory=session_factory)
