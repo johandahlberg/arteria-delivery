@@ -13,7 +13,7 @@ class FileSystemService(object):
     """
 
     @staticmethod
-    def _list_directories(base_path):
+    def list_directories(base_path):
         """
         List all directories
         :param base_path: base path to list directories in.
@@ -34,7 +34,7 @@ class FileSystemService(object):
         :param projects_base_dir: directory to list
         :return: a generator of paths to project directories
         """
-        return self._list_directories(projects_base_dir)
+        return self.list_directories(projects_base_dir)
 
     def find_runfolder_directories(self, base_path):
         """
@@ -42,7 +42,7 @@ class FileSystemService(object):
         :param base_path: directory to list
         :return: a generator or paths to runfolder directories
         """
-        return self._list_directories(base_path)
+        return self.list_directories(base_path)
 
     @staticmethod
     def isdir(path):
