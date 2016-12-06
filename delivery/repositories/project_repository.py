@@ -4,6 +4,7 @@ import os
 from delivery.services.file_system_service import FileSystemService
 from delivery.models.project import GeneralProject
 
+
 class RunfolderProjectRepository(object):
     """
     Repository for materializing project instances

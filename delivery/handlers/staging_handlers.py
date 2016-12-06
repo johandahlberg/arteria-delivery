@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 
 
 class BaseStagingHandler(BaseRestHandler):
+
     def _construct_status_endpoint(self, status_id):
         status_end_point = "{0}://{1}{2}".format(self.request.protocol,
                                                  self.request.host,

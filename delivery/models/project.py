@@ -4,6 +4,7 @@ from delivery.models import BaseModel
 
 
 class BaseProject(BaseModel):
+
     def __eq__(self, other):
         """
         Two project should be considered the same if the represent the same directory on disk
@@ -13,6 +14,7 @@ class BaseProject(BaseModel):
         if isinstance(other, self.__class__):
             return self.path == other.path
         return False
+
 
 class RunfolderProject(BaseProject):
     """
@@ -36,6 +38,7 @@ class GeneralProject(BaseProject):
     """
     Model representing a project as a directory on disk.
     """
+
     def __init__(self, name, path):
         self.name = name
         self.path = path

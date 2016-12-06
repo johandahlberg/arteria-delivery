@@ -135,7 +135,6 @@ class TestStagingService(unittest.TestCase):
         result = self.staging_service.stage_directory('foo')
         self.assertDictEqual(expected, result)
 
-
     # - Reject staging a directory that does not exist...
     def test_stage_directory_does_not_exist(self):
         with self.assertRaises(ProjectNotFoundException):

@@ -3,7 +3,7 @@ import unittest
 from mock import MagicMock
 
 from delivery.models.project import GeneralProject
-from delivery.repositories.project_repository import RunfolderProjectRepository,GeneralProjectRepository
+from delivery.repositories.project_repository import RunfolderProjectRepository, GeneralProjectRepository
 from delivery.services.file_system_service import FileSystemService
 
 from tests.test_utils import FAKE_RUNFOLDERS
