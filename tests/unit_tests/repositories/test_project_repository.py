@@ -2,7 +2,7 @@
 import unittest
 from mock import MagicMock
 
-from delivery.repositories.project_repository import ProjectRepository
+from delivery.repositories.project_repository import RunfolderProjectRepository
 
 from tests.test_utils import FAKE_RUNFOLDERS
 
@@ -11,7 +11,7 @@ class TestProjectRepository(unittest.TestCase):
 
     runfolder_respository = MagicMock()
     runfolder_respository.get_runfolders.return_value = FAKE_RUNFOLDERS
-    repo = ProjectRepository(runfolder_repository=runfolder_respository)
+    repo = RunfolderProjectRepository(runfolder_repository=runfolder_respository)
 
     def test_get_projects(self):
         actual_projects = list(self.repo.get_projects())

@@ -1,6 +1,6 @@
 
 
-class ProjectRepository(object):
+class RunfolderProjectRepository(object):
     """
     Repository for materializing project instances
     """
