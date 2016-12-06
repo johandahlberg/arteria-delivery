@@ -3,7 +3,7 @@ import os
 from delivery.models import BaseModel
 
 
-class Project(BaseModel):
+class RunfolderProject(BaseModel):
     """
     Model a project directory in a runfolder on disk. Note that this means that this project model only extends
     to the idea of projects as subdirectories in a demultiplexed Illumina runfolder.
@@ -23,7 +23,7 @@ class Project(BaseModel):
     def __eq__(self, other):
         """
         Two project should be considered the same if the represent the same directory on disk
-        :param other: instance of Project
+        :param other: instance of RunfolderProject
         :return: true if the same project, otherwise false
         """
         if isinstance(other, self.__class__):

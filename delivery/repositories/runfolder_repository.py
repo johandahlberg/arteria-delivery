@@ -4,7 +4,7 @@ import os
 import re
 
 from delivery.models.runfolder import Runfolder
-from delivery.models.project import Project
+from delivery.models.project import RunfolderProject
 from delivery.services.file_system_service import FileSystemService
 
 log = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class FileSystemBasedRunfolderRepository(object):
                 runfolder = Runfolder(name=name, path=path, projects=None)
 
                 def project_from_dir(d):
-                    return Project(name=os.path.basename(d), path=os.path.join(projects_base_dir, d), runfolder_path=path)
+                    return RunfolderProject(name=os.path.basename(d), path=os.path.join(projects_base_dir, d), runfolder_path=path)
 
                 # There are scenarios where there are no project directories in the runfolder,
                 # i.e. when fastq files have not yet been divided into projects
