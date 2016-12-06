@@ -140,8 +140,8 @@ class StagingService(object):
         :param runfolder_id: identifier (name) of runfolder that should be staged
         :param projects_to_stage: defaults to None, otherwise only stage the project names given in this list, i.e.
                                   ["ABC_123", "DEF_456"]
-        :return: the ids of the stage orders created. This can than be used to poll for status using e.g.
-                `get_status_of_stage_order`
+        :return: the ids of the stage orders created, as a dict of project -> stage id.
+         This can than be used to poll for status using e.g. `get_status_of_stage_order`
         """
 
         runfolder = self.runfolder_repo.get_runfolder(runfolder_id)
@@ -162,7 +162,7 @@ class StagingService(object):
             raise ProjectNotFoundException("Projects to stage: {} do not match projects on runfolder: {}".
                                            format(projects_to_stage, names_of_project_on_runfolder))
 
-        stage_order_ids = []
+        project_and_stage_order_ids = {}
         for project in runfolder.projects:
             if project.name in projects_to_stage:
                 # TODO Verify that there is no currently ongoing staging order before
@@ -173,9 +173,9 @@ class StagingService(object):
                                                                        staging_target_dir=self.staging_dir)
                 log.debug("Created a staging order: {}".format(staging_order))
                 self.stage_order(staging_order)
-                stage_order_ids.append(staging_order.id)
+                project_and_stage_order_ids[project.name] = staging_order.id
 
-        return stage_order_ids
+        return project_and_stage_order_ids
 
     def get_stage_order_by_id(self, stage_order_id):
         """

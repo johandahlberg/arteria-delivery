@@ -69,7 +69,9 @@ class TestIntegration(AsyncHTTPTestCase):
 
         staging_status_links = response_json.get("staging_order_links")
 
-        for link in staging_status_links:
+        for project, link in staging_status_links.iteritems():
+
+            self.assertEqual(project, "ABC_123")
 
             def _get_delivery_status():
                 self.http_client.fetch(link, self.stop)

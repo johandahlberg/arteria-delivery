@@ -103,7 +103,9 @@ class TestStagingService(unittest.TestCase):
 
         result = self.staging_service.stage_runfolder(
             runfolder_id=runfolder1.name, projects_to_stage=[])
-        self.assertEqual(result, map(lambda x: x.id, mock_staging_repo.orders_state))
+
+        expected = {'DEF_456': 2, 'ABC_123': 1}
+        self.assertDictEqual(result, expected)
 
         # - Reject stating a runfolder if the given projects is not available
         with self.assertRaises(ProjectNotFoundException):

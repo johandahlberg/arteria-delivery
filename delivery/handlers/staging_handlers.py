@@ -60,14 +60,18 @@ class StagingRunfolderHandler(BaseRestHandler):
 
             log.debug("Got the following projects to stage: {}".format(projects_to_stage))
 
-            staging_order_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
-            status_end_points = map(lambda order_id: "{0}://{1}{2}".format(self.request.protocol,
-                                                                           self.request.host,
-                                                                           self.reverse_url("stage_status", order_id)),
-                                    staging_order_ids)
+            staging_order_projects_and_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
+
+
+            result = {}
+            for project, status_id in staging_order_projects_and_ids.iteritems():
+                status_end_points = "{0}://{1}{2}".format(self.request.protocol,
+                                                          self.request.host,
+                                                          self.reverse_url("stage_status", status_id))
+                result[project] = status_end_points
 
             self.set_status(ACCEPTED)
-            self.write_json({'staging_order_links': status_end_points})
+            self.write_json({'staging_order_links': result})
         except ProjectNotFoundException as e:
             self.set_status(NOT_FOUND, reason=e.msg)
 
