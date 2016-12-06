@@ -36,9 +36,10 @@ class GeneralProjectRepository(object):
 
     def __init__(self, root_directory, filesystem_service=FileSystemService()):
         """
-        TODO
-        :param root_directory:
-        :param filesystem_service:
+        Instantiate a `GeneralProjectRepository` instance
+        :param root_directory: directory in which to look for projects
+        :param filesystem_service: a file system service used to interact with the file system, defaults to
+        `FileSystemService`
         """
         self.root_directory = root_directory
         self.filesystem_service = filesystem_service

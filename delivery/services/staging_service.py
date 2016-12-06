@@ -188,9 +188,9 @@ class StagingService(object):
 
     def stage_directory(self, dir_name):
         """
-        Stage a directory from the "general"
-        :param dir_name:
-        :return:
+        Stage a project directory from a "general" directory
+        :param dir_name: to stage from
+        :return: a dictionary for project name -> staging id
         """
         known_projects = self.project_dir_repo.get_projects()
 

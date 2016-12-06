@@ -4,6 +4,9 @@ from delivery.models import BaseModel
 
 
 class BaseProject(BaseModel):
+    """
+    Base class for the different project models
+    """
 
     def __eq__(self, other):
         """
@@ -24,7 +27,7 @@ class RunfolderProject(BaseProject):
 
     def __init__(self, name, path, runfolder_path=None):
         """
-        Instantiate a new project object
+        Instantiate a new `RunfolderProject` object
         :param name: of the project
         :param path: path to the project
         :param runfolder_path: path the runfolder in which this project is stored.
@@ -40,5 +43,10 @@ class GeneralProject(BaseProject):
     """
 
     def __init__(self, name, path):
+        """
+        Instantiate a new `GeneralProject` object
+        :param name: of the project
+        :param path: path to the project
+        """
         self.name = name
         self.path = path

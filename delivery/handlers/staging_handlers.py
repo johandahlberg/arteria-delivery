@@ -39,7 +39,7 @@ class StagingRunfolderHandler(BaseStagingHandler):
 
             url = "http://localhost:8080/api/1.0/stage/runfolder/160930_ST-E00216_0111_BH37CWALXX"
 
-            payload = "{'projects': ['ABC_123', 'DEF_456']}"
+            payload = "{'projects': ['ABC_123']}"
             headers = {
                 'content-type': "application/json",
             }
@@ -49,12 +49,8 @@ class StagingRunfolderHandler(BaseStagingHandler):
             print(response.text)
 
         The return format looks like:
+            {"staging_order_links": {"ABC_123": "http://localhost:8080/api/1.0/stage/584"}}
 
-            {
-               "staging_order_links": [
-                    "http://localhost:8080/api/1.0/stage/1"
-                ]
-            }
         """
 
         log.debug("Trying to stage runfolder with id: {}".format(runfolder_id))
@@ -82,11 +78,37 @@ class StagingRunfolderHandler(BaseStagingHandler):
 
 
 class StageGeneralDirectoryHandler(BaseStagingHandler):
+    """
+    Handler used to stage projects which are represented as directories in a root directory specified by
+    `general_project_directory` in the application config.
+    """
 
     def initialize(self, staging_service, **kwargs):
         self.staging_service = staging_service
 
     def post(self, directory_name):
+        """
+        Attempt to stage projects (represented by directories under a configurable root directory),
+        so that they can then be delivered.
+        Will return a set of status links, one for each project that can be queried for the status of
+        that staging attempt. E.g:
+
+            import requests
+
+            url = "http://localhost:8080/api/1.0/stage/project/my_test_project"
+
+            headers = {
+                'content-type': "application/json",
+            }
+
+            response = requests.request("POST", url, data='', headers=headers)
+
+            print(response.text)
+
+        The return format looks like:
+            {"staging_order_links": {"my_test_project": "http://localhost:8080/api/1.0/stage/591"}}
+
+        """
         stage_order_and_id = self.staging_service.stage_directory(directory_name)
 
         result = {}
