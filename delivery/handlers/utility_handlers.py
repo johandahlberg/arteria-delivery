@@ -8,7 +8,7 @@ from delivery import __version__ as version
 
 class ArteriaDeliveryBaseHandler(BaseRestHandler):
     """
-    Base handler for checksum.
+    Base handler for Arteria delivery handlers.
     """
 
     def initialize(self, config, **kwargs):
