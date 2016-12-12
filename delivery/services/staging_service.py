@@ -8,7 +8,7 @@ from tornado.ioloop import IOLoop
 
 from delivery.models.db_models import StagingStatus
 from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException,\
-    ProjectNotFoundException, ToManyProjectsFound
+    ProjectNotFoundException, TooManyProjectsFound
 
 log = logging.getLogger(__name__)
 
@@ -199,7 +199,7 @@ class StagingService(object):
         if not matching_project:
             raise ProjectNotFoundException("Could not find a project with name: {}".format(dir_name))
         if len(matching_project) > 1:
-            raise ToManyProjectsFound("Found more than one project matching name: {}. This should"
+            raise TooManyProjectsFound("Found more than one project matching name: {}. This should"
                                       "not be possible...".format(dir()))
 
         exact_project = matching_project[0]

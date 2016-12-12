@@ -14,10 +14,11 @@ class ProjectNotFoundException(Exception):
     pass
 
 
-class ToManyProjectsFound(Exception):
+class TooManyProjectsFound(Exception):
     """
     Should be raise when to many projects match some specific criteria
     """
+    pass
 
 
 class InvalidStatusException(Exception):
