@@ -23,6 +23,7 @@ from delivery.repositories.project_repository import GeneralProjectRepository
 from delivery.services.delivery_service import MoverDeliveryService
 from delivery.services.external_program_service import ExternalProgramService
 from delivery.services.staging_service import StagingService
+from delivery.services.file_system_service import FileSystemService
 
 
 def routes(**kwargs):
@@ -79,9 +80,23 @@ def compose_application(config):
     :param config: a configuration instance
     :return: a dictionary with references to any relevant resources
     """
-    runfolder_repo = FileSystemBasedRunfolderRepository(
-        config["runfolder_directory"])
-    general_project_repo = GeneralProjectRepository(root_directory=config['general_project_directory'])
+
+    def _assert_is_dir(directory):
+        if not FileSystemService.isdir(directory):
+            raise AssertionError("{} is not a directory".format(directory))
+
+    staging_dir = config['staging_directory']
+    _assert_is_dir(staging_dir)
+
+    runfolder_dir = config["runfolder_directory"]
+    _assert_is_dir(runfolder_dir)
+
+    runfolder_repo = FileSystemBasedRunfolderRepository(runfolder_dir)
+
+    general_project_dir = config['general_project_directory']
+    _assert_is_dir(general_project_dir)
+
+    general_project_repo = GeneralProjectRepository(root_directory=general_project_dir)
     external_program_service = ExternalProgramService()
 
     db_connection_string = config["db_connection_string"]
@@ -98,7 +113,7 @@ def compose_application(config):
                                      runfolder_repo=runfolder_repo,
                                      project_dir_repo=general_project_repo,
                                      staging_repo=staging_repo,
-                                     staging_dir=config["staging_directory"],
+                                     staging_dir=staging_dir,
                                      session_factory=session_factory)
 
     delivery_repo = DatabaseBasedDeliveriesRepository(session_factory=session_factory)
