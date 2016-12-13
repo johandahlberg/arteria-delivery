@@ -18,6 +18,15 @@ class BaseStagingHandler(BaseRestHandler):
                                                  self.reverse_url("stage_status", status_id))
         return status_end_point
 
+    def _construct_response_from_project_and_status(self, staging_order_projects_and_ids):
+        link_results = {}
+        id_results = {}
+        for project, status_id in staging_order_projects_and_ids.iteritems():
+            link_results[project] = self._construct_status_endpoint(status_id)
+            id_results[project] = status_id
+
+        return link_results, id_results
+
 
 class StagingRunfolderHandler(BaseStagingHandler):
     """
@@ -67,12 +76,11 @@ class StagingRunfolderHandler(BaseStagingHandler):
 
             staging_order_projects_and_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
 
-            result = {}
-            for project, status_id in staging_order_projects_and_ids.iteritems():
-                result[project] = self._construct_status_endpoint(status_id)
+            link_results, id_results = self._construct_response_from_project_and_status(staging_order_projects_and_ids)
 
             self.set_status(ACCEPTED)
-            self.write_json({'staging_order_links': result})
+            self.write_json({'staging_order_links': link_results,
+                             'staging_order_ids': id_results})
         except ProjectNotFoundException as e:
             self.set_status(NOT_FOUND, reason=e.msg)
 
@@ -111,12 +119,11 @@ class StageGeneralDirectoryHandler(BaseStagingHandler):
         """
         stage_order_and_id = self.staging_service.stage_directory(directory_name)
 
-        result = {}
-        for project, status_id in stage_order_and_id.iteritems():
-            result[project] = self._construct_status_endpoint(status_id)
-        self.set_status(ACCEPTED)
-        self.write_json({'staging_order_links': result})
+        link_results, id_results = self._construct_response_from_project_and_status(stage_order_and_id)
 
+        self.set_status(ACCEPTED)
+        self.write_json({'staging_order_links': link_results,
+                         'staging_order_ids': id_results})
 
 class StagingHandler(BaseRestHandler):
 
