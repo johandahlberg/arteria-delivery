@@ -49,4 +49,4 @@ class GeneralProject(BaseProject):
         :param path: path to the project
         """
         self.name = name
-        self.path = path
+        self.path = os.path.abspath(path)
