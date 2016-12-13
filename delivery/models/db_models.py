@@ -68,8 +68,9 @@ class DeliveryStatus(base_enum.Enum):
     pending = 'pending'
 
     mover_processing_delivery = 'mover_processing_delivery'
+    mover_failed_delivery = 'mover_failed_delivery'
     delivery_in_progress = 'delivery_in_progress'
-    delivery_finished = 'delivery_successful'
+    delivery_successful = 'delivery_successful'
     delivery_failed = 'delivery_failed'
 
 
@@ -93,8 +94,7 @@ class DeliveryOrder(SQLAlchemyBase):
 
     # Mover delivery id - the id that is needed to query mover about
     # a delivery status
-    # TODO At this stage I don't know the type of this... /JD 20161201
-    mover_delivery_id = Column(Integer)
+    mover_delivery_id = Column(String)
 
     # TODO Depending on how Mover will work we might not
     # store the delivery status here, but rather poll Mover about it...
