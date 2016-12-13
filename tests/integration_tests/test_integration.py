@@ -12,7 +12,7 @@ from tornado.web import Application
 from arteria.web.app import AppService
 
 from delivery.app import routes as app_routes, compose_application
-from delivery.models.db_models import StagingStatus
+from delivery.models.db_models import StagingStatus, DeliveryStatus
 
 from tests.test_utils import assert_eventually_equals
 
@@ -66,7 +66,7 @@ class TestIntegration(AsyncHTTPTestCase):
         first_project = response_json["projects"][0]
         self.assertEqual(first_project["name"], "ABC_123")
 
-    def test_can_stage_delivery(self):
+    def test_can_stage_and_delivery_runfolder(self):
         url = "/".join([self.API_BASE, "stage", "runfolder", "160930_ST-E00216_0111_BH37CWALXX"])
         response = self.fetch(url, method='POST', body='')
         self.assertEqual(response.code, 202)
@@ -84,8 +84,22 @@ class TestIntegration(AsyncHTTPTestCase):
                                      delay=1,
                                      f=partial(self._get_delivery_status, link),
                                      expected=StagingStatus.staging_successful.name)
+        staging_order_project_and_id = response_json.get("staging_order_ids")
 
-    def test_can_stage_project(self):
+        for project, staging_id in staging_order_project_and_id.iteritems():
+            delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
+            delivery_body = {'delivery_project_id': 'fakedeliveryid2016'}
+            delivery_resp = self.fetch(delivery_url, method='POST', body=json.dumps(delivery_body))
+            delivery_resp_as_json = json.loads(delivery_resp.body)
+            delivery_link = delivery_resp_as_json['delivery_order_link']
+
+            assert_eventually_equals(self,
+                                     timeout=5,
+                                     delay=1,
+                                     f=partial(self._get_delivery_status, delivery_link),
+                                     expected=DeliveryStatus.delivery_successful.name)
+
+    def test_can_stage_and_delivery_project_dir(self):
         url = "/".join([self.API_BASE, "stage", "project", "my_test_project"])
         response = self.fetch(url, method='POST', body='')
         self.assertEqual(response.code, 202)
@@ -95,7 +109,6 @@ class TestIntegration(AsyncHTTPTestCase):
         staging_status_links = response_json.get("staging_order_links")
 
         for project, link in staging_status_links.iteritems():
-
             self.assertEqual(project, "my_test_project")
 
             assert_eventually_equals(self,
@@ -104,5 +117,21 @@ class TestIntegration(AsyncHTTPTestCase):
                                      f=partial(self._get_delivery_status, link),
                                      expected=StagingStatus.staging_successful.name)
 
-    def test_can_deliver_data(self):
-        pass
+        staging_order_project_and_id = response_json.get("staging_order_ids")
+
+        for project, staging_id in staging_order_project_and_id.iteritems():
+            delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
+            delivery_body = {'delivery_project_id': 'fakedeliveryid2016'}
+            delivery_resp = self.fetch(delivery_url, method='POST', body=json.dumps(delivery_body))
+            delivery_resp_as_json = json.loads(delivery_resp.body)
+            delivery_link = delivery_resp_as_json['delivery_order_link']
+
+            assert_eventually_equals(self,
+                                     timeout=5,
+                                     delay=1,
+                                     f=partial(self._get_delivery_status, delivery_link),
+                                     expected=DeliveryStatus.delivery_successful.name)
+
+
+
+
