@@ -1,5 +1,6 @@
 
 import logging
+import time
 
 from tornado.ioloop import IOLoop
 
@@ -28,11 +29,13 @@ class MoverDeliveryService(object):
         delivery_order = delivery_order_repo.get_delivery_order_by_id(delivery_order_id, session)
         try:
 
-            cmd = ['mover',
-                   'deliver',
-                   delivery_order.delivery_source,
-                   delivery_order.delivery_project,
-                   delivery_order.md5sum_file]
+            cmd = ['sleep', '2']
+            # TODO Add this back in when we have the mover commands
+            #cmd = ['mover',
+            #       'deliver',
+            #       delivery_order.delivery_source,
+            #       delivery_order.delivery_project,
+            #       delivery_order.md5sum_file]
 
             execution = external_program_service.run(cmd)
             delivery_order.delivery_status = DeliveryStatus.mover_processing_delivery
@@ -44,10 +47,10 @@ class MoverDeliveryService(object):
             if execution_result.status_code == 0:
                 delivery_order.delivery_status = DeliveryStatus.delivery_in_progress
                 # TODO Need to parse info about Mover id etc here!
-
-                log.info("Successfully started delivery of with Mover: {}".format(delivery_order))
+                delivery_order.mover_delivery_id = 'set_to_a_string..'
+                log.info("Successfully started delivery with Mover of: {}".format(delivery_order))
             else:
-                delivery_order.delivery_status = DeliveryStatus.delivery_failed
+                delivery_order.delivery_status = DeliveryStatus.mover_failed_delivery
                 log.info("Failed to start Mover delivery: {}. Mover returned status code: {}".
                          format(delivery_order, execution_result.status_code))
 
@@ -82,24 +85,38 @@ class MoverDeliveryService(object):
         self.io_loop_factory().spawn_callback(MoverDeliveryService._run_mover,
                                               **args_for_run_mover)
 
+        return delivery_order.id
+
     def _run_mover_info(self, mover_delivery_order_id):
 
-        cmd = ['mover', 'info', mover_delivery_order_id]
+        #cmd = ['mover', 'info', mover_delivery_order_id]
+        cmd = ['sleep', '1']
         result = self.external_program_service.run_and_wait(cmd)
         # TODO Parse info about the run based on mover info
+        status = 'successful'
 
         # TODO Do not return None here!
-        return None
+        return status
 
     def update_delivery_status(self, delivery_order_id):
-        delivery_order = self.get_status_of_delivery_order(delivery_order_id)
+        delivery_order = self.get_delivery_order_by_id(delivery_order_id)
 
-        if delivery_order.mover_delivery_id and delivery_order.status == DeliveryStatus.delivery_in_progress:
-            mover_info_result = self._run_mover(delivery_order.mover_delivery_id)
-        else:
-            return delivery_order.status
+        if delivery_order.mover_delivery_id and delivery_order.delivery_status == DeliveryStatus.delivery_in_progress:
+            mover_info_result = self._run_mover_info(delivery_order.mover_delivery_id)
+            # TODO Extend for non-successful case!
+            session = self.session_factory()
+            if mover_info_result == 'successful':
+                log.info("Got successful status from Mover for delivery order: {}".format(delivery_order.id))
+                delivery_order.delivery_status = DeliveryStatus.delivery_successful
+            elif mover_info_result == 'failed':
+                log.error('Mover failed for delivery: {}'.format(delivery_order))
+                delivery_order.delivery_status = DeliveryStatus.mover_failed_delivery
+            else:
+                raise NotImplementedError('Do not recognized status: {}'.format(mover_info_result))
 
-            # TODO If necessary update status of our corresponding delivery object.
+            session.commit()
+
+        return delivery_order
 
     def get_delivery_order_by_id(self, delivery_order_id):
         return self.delivery_repo.get_delivery_order_by_id(delivery_order_id)
