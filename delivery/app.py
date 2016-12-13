@@ -12,16 +12,18 @@ from arteria.web.app import AppService
 from delivery.handlers.utility_handlers import VersionHandler
 from delivery.handlers.runfolder_handlers import RunfolderHandler
 from delivery.handlers.project_handlers import ProjectHandler, ProjectsForRunfolderHandler
-from delivery.handlers.delivery_handlers import DeliverByStageIdHandler
-from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingHandler
+from delivery.handlers.delivery_handlers import DeliverByStageIdHandler, DeliveryStatusHandler
+from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingHandler, StageGeneralDirectoryHandler
 
 from delivery.repositories.runfolder_repository import FileSystemBasedRunfolderRepository
 from delivery.repositories.staging_repository import DatabaseBasedStagingRepository
 from delivery.repositories.deliveries_repository import DatabaseBasedDeliveriesRepository
+from delivery.repositories.project_repository import GeneralProjectRepository
 
 from delivery.services.delivery_service import MoverDeliveryService
 from delivery.services.external_program_service import ExternalProgramService
 from delivery.services.staging_service import StagingService
+from delivery.services.file_system_service import FileSystemService
 
 
 def routes(**kwargs):
@@ -39,15 +41,18 @@ def routes(**kwargs):
         url(r"/api/1.0/runfolders/(.+)/projects", ProjectsForRunfolderHandler,
             name="projects_for_runfolder", kwargs=kwargs),
 
-
         url(r"/api/1.0/stage/runfolder/(.+)", StagingRunfolderHandler,
             name="stage_runfolder", kwargs=kwargs),
+        url(r"/api/1.0/stage/project/(.+)", StageGeneralDirectoryHandler,
+            name="stage_project", kwargs=kwargs),
 
         url(r"/api/1.0/stage/(\d+)", StagingHandler, name="stage_status", kwargs=kwargs),
 
-        # TODO Should deliver by stage id!
         url(r"/api/1.0/deliver/stage_id/(.+)", DeliverByStageIdHandler,
-            name="delivery_runfolder", kwargs=kwargs)
+            name="delivery_by_state_id", kwargs=kwargs),
+
+        url(r"/api/1.0/deliver/status/(.+)", DeliveryStatusHandler,
+            name="delivery_status", kwargs=kwargs)
     ]
 
 
@@ -75,8 +80,23 @@ def compose_application(config):
     :param config: a configuration instance
     :return: a dictionary with references to any relevant resources
     """
-    runfolder_repo = FileSystemBasedRunfolderRepository(
-        config["monitored_directory"])
+
+    def _assert_is_dir(directory):
+        if not FileSystemService.isdir(directory):
+            raise AssertionError("{} is not a directory".format(directory))
+
+    staging_dir = config['staging_directory']
+    _assert_is_dir(staging_dir)
+
+    runfolder_dir = config["runfolder_directory"]
+    _assert_is_dir(runfolder_dir)
+
+    runfolder_repo = FileSystemBasedRunfolderRepository(runfolder_dir)
+
+    general_project_dir = config['general_project_directory']
+    _assert_is_dir(general_project_dir)
+
+    general_project_repo = GeneralProjectRepository(root_directory=general_project_dir)
     external_program_service = ExternalProgramService()
 
     db_connection_string = config["db_connection_string"]
@@ -91,15 +111,17 @@ def compose_application(config):
 
     staging_service = StagingService(external_program_service=external_program_service,
                                      runfolder_repo=runfolder_repo,
+                                     project_dir_repo=general_project_repo,
                                      staging_repo=staging_repo,
-                                     staging_dir=config["staging_directory"],
+                                     staging_dir=staging_dir,
                                      session_factory=session_factory)
 
     delivery_repo = DatabaseBasedDeliveriesRepository(session_factory=session_factory)
 
     delivery_service = MoverDeliveryService(external_program_service=external_program_service,
                                             staging_service=staging_service,
-                                            delivery_repo=delivery_repo)
+                                            delivery_repo=delivery_repo,
+                                            session_factory=session_factory)
 
     return dict(config=config,
                 runfolder_repo=runfolder_repo,

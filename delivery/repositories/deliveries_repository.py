@@ -25,14 +25,23 @@ class DatabaseBasedDeliveriesRepository(object):
         """
         return self.session.query(DeliveryOrder).filter(DeliveryOrder.delivery_source == source_directory).all()
 
-    def get_delivery_order_by_id(self, delivery_order_id):
+    def get_delivery_order_by_id(self, delivery_order_id, custom_session=None):
         """
         Get the delivery order matching the given id
+        The custom_session used here is used because in the `DeliveryService` it is necessary to
+        make this query from a separate thread, something which sqlalchemy does not allow. Therefore
+        I've made it possible to provide a separate session here (in that case a new session instantiate in the
+        thread), while hacky it appears to work. /JD 20161212
         :param delivery_order_id: to search for
-        :return: the matching delivery order, or None, if no order was found matchin id
+        :param custom_session: provide an other session object if that is necessary for your use case.
+        :return: the matching delivery order, or None, if no order was found matching id
         """
+        if custom_session:
+            session = custom_session
+        else:
+            session = self.session
         try:
-            return self.session.query(DeliveryOrder).filter(DeliveryOrder.id == delivery_order_id).one()
+            return session.query(DeliveryOrder).filter(DeliveryOrder.id == delivery_order_id).one()
         except NoResultFound:
             return None
 
@@ -43,7 +52,12 @@ class DatabaseBasedDeliveriesRepository(object):
         """
         return self.session.query(DeliveryOrder).all()
 
-    def create_delivery_order(self, delivery_source, delivery_project, delivery_status, staging_order_id):
+    def create_delivery_order(self,
+                              delivery_source,
+                              delivery_project,
+                              delivery_status,
+                              staging_order_id,
+                              md5sum_file=None):
         """
         Create a new delivery order and commit it to the database
         :param delivery_source: the source directory to be delivered
@@ -52,15 +66,15 @@ class DatabaseBasedDeliveriesRepository(object):
         :param staging_order_id: NOTA BENE: this will need to be verified against the staging table before
                                  inserting it here, because at this point there is no validation that the
                                  value is valid!
+        :param md5sum_file: Optional path to an md5sum file that mover to check files against.
         :return: the created delivery order
         """
         order = DeliveryOrder(delivery_source=delivery_source,
                               delivery_project=delivery_project,
                               delivery_status=delivery_status,
-                              staging_order_id=staging_order_id)
+                              staging_order_id=staging_order_id,
+                              md5sum_file=md5sum_file)
         self.session.add(order)
         self.session.commit()
 
         return order
-
-

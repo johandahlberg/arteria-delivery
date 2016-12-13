@@ -1,7 +1,7 @@
 
 from delivery.handlers import *
 from delivery.handlers.utility_handlers import ArteriaDeliveryBaseHandler
-from delivery.repositories.project_repository import ProjectRepository
+from delivery.repositories.project_repository import RunfolderProjectRepository
 
 
 class ProjectBaseHandler(ArteriaDeliveryBaseHandler):
@@ -11,7 +11,7 @@ class ProjectBaseHandler(ArteriaDeliveryBaseHandler):
 
     def initialize(self, **kwargs):
         self.runfolder_repo = kwargs["runfolder_repo"]
-        self.project_repo = ProjectRepository(
+        self.project_repo = RunfolderProjectRepository(
             runfolder_repository=self.runfolder_repo)
         super(ProjectBaseHandler, self).initialize(kwargs)
 

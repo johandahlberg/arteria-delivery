@@ -10,7 +10,25 @@ from delivery.exceptions import ProjectNotFoundException
 log = logging.getLogger(__name__)
 
 
-class StagingRunfolderHandler(BaseRestHandler):
+class BaseStagingHandler(BaseRestHandler):
+
+    def _construct_status_endpoint(self, status_id):
+        status_end_point = "{0}://{1}{2}".format(self.request.protocol,
+                                                 self.request.host,
+                                                 self.reverse_url("stage_status", status_id))
+        return status_end_point
+
+    def _construct_response_from_project_and_status(self, staging_order_projects_and_ids):
+        link_results = {}
+        id_results = {}
+        for project, status_id in staging_order_projects_and_ids.iteritems():
+            link_results[project] = self._construct_status_endpoint(status_id)
+            id_results[project] = status_id
+
+        return link_results, id_results
+
+
+class StagingRunfolderHandler(BaseStagingHandler):
     """
     Handler class for handling how to start staging of a runfolder. Polling for status, canceling, etc can then be
     handled by the more general `StagingHandler`
@@ -30,7 +48,7 @@ class StagingRunfolderHandler(BaseRestHandler):
 
             url = "http://localhost:8080/api/1.0/stage/runfolder/160930_ST-E00216_0111_BH37CWALXX"
 
-            payload = "{'projects': ['ABC_123', 'DEF_456']}"
+            payload = "{'projects': ['ABC_123']}"
             headers = {
                 'content-type': "application/json",
             }
@@ -40,12 +58,8 @@ class StagingRunfolderHandler(BaseRestHandler):
             print(response.text)
 
         The return format looks like:
+            {"staging_order_links": {"ABC_123": "http://localhost:8080/api/1.0/stage/584"}}
 
-            {
-               "staging_order_links": [
-                    "http://localhost:8080/api/1.0/stage/1"
-                ]
-            }
         """
 
         log.debug("Trying to stage runfolder with id: {}".format(runfolder_id))
@@ -60,17 +74,56 @@ class StagingRunfolderHandler(BaseRestHandler):
 
             log.debug("Got the following projects to stage: {}".format(projects_to_stage))
 
-            staging_order_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
-            status_end_points = map(lambda order_id: "{0}://{1}{2}".format(self.request.protocol,
-                                                                           self.request.host,
-                                                                           self.reverse_url("stage_status", order_id)),
-                                    staging_order_ids)
+            staging_order_projects_and_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
+
+            link_results, id_results = self._construct_response_from_project_and_status(staging_order_projects_and_ids)
 
             self.set_status(ACCEPTED)
-            self.write_json({'staging_order_links': status_end_points})
+            self.write_json({'staging_order_links': link_results,
+                             'staging_order_ids': id_results})
         except ProjectNotFoundException as e:
             self.set_status(NOT_FOUND, reason=e.msg)
 
+
+class StageGeneralDirectoryHandler(BaseStagingHandler):
+    """
+    Handler used to stage projects which are represented as directories in a root directory specified by
+    `general_project_directory` in the application config.
+    """
+
+    def initialize(self, staging_service, **kwargs):
+        self.staging_service = staging_service
+
+    def post(self, directory_name):
+        """
+        Attempt to stage projects (represented by directories under a configurable root directory),
+        so that they can then be delivered.
+        Will return a set of status links, one for each project that can be queried for the status of
+        that staging attempt. E.g:
+
+            import requests
+
+            url = "http://localhost:8080/api/1.0/stage/project/my_test_project"
+
+            headers = {
+                'content-type': "application/json",
+            }
+
+            response = requests.request("POST", url, data='', headers=headers)
+
+            print(response.text)
+
+        The return format looks like:
+            {"staging_order_links": {"my_test_project": "http://localhost:8080/api/1.0/stage/591"}}
+
+        """
+        stage_order_and_id = self.staging_service.stage_directory(directory_name)
+
+        link_results, id_results = self._construct_response_from_project_and_status(stage_order_and_id)
+
+        self.set_status(ACCEPTED)
+        self.write_json({'staging_order_links': link_results,
+                         'staging_order_ids': id_results})
 
 class StagingHandler(BaseRestHandler):
 

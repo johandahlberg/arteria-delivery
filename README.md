@@ -16,7 +16,7 @@ Try running it:
 
 And then you can find a simple api documentation by going to:
 
-    http://localhost:8888/api/1.0
+    http://localhost:8080/api
 
 
 REST endpoints

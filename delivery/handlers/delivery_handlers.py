@@ -1,7 +1,8 @@
 
 import json
 
-from delivery.models.db_models import DeliveryOrder
+
+from delivery.handlers import *
 from delivery.handlers.utility_handlers import ArteriaDeliveryBaseHandler
 
 
@@ -16,16 +17,36 @@ class DeliverByStageIdHandler(ArteriaDeliveryBaseHandler):
         super(DeliverByStageIdHandler, self).initialize(kwargs)
 
     def post(self, staging_id):
-
-        # TODO This is just a sketch that is not yet tested!
-
-        request_data = self.body_as_object(["delivery_project_id"])
-        delivery_project_id = request_data.get("delivery_project_id")
-
-        self.delivery_service.delivery_by_staging_id(staging_id=staging_id,
-                                                     delivery_project=delivery_project_id)
-
-        # TODO Extend this later once we know more about how this will work..
+        request_data = self.body_as_object(required_members=["delivery_project_id"])
+        delivery_project_id = request_data["delivery_project_id"]
 
 
+        md5sum_file = request_data.get("md5sums_file")
 
+        delivery_id = self.delivery_service.deliver_by_staging_id(staging_id=staging_id,
+                                                                  delivery_project=delivery_project_id,
+                                                                  md5sum_file=md5sum_file)
+
+        status_end_point = "{0}://{1}{2}".format(self.request.protocol,
+                                                 self.request.host,
+                                                 self.reverse_url("delivery_status", delivery_id))
+
+        self.set_status(ACCEPTED)
+        self.write_json({'delivery_order_id': delivery_id,
+                         'delivery_order_link': status_end_point})
+
+
+
+class DeliveryStatusHandler(ArteriaDeliveryBaseHandler):
+
+    def initialize(self, **kwargs):
+        self.delivery_service = kwargs["delivery_service"]
+        super(DeliveryStatusHandler, self).initialize(kwargs)
+
+    def get(self, delivery_order_id):
+        delivery_order = self.delivery_service.update_delivery_status(delivery_order_id)
+
+        self.write_json({'id': delivery_order.id,
+                         'status': delivery_order.delivery_status.name,
+                         'mover_delivery_id': delivery_order.mover_delivery_id})
+        self.set_status(OK)

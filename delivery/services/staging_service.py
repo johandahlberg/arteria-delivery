@@ -7,7 +7,8 @@ from tornado.ioloop import IOLoop
 
 
 from delivery.models.db_models import StagingStatus
-from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException, ProjectNotFoundException
+from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException,\
+    ProjectNotFoundException, TooManyProjectsFound
 
 log = logging.getLogger(__name__)
 
@@ -32,20 +33,27 @@ class StagingService(object):
     #  briefly while doing so (I think row level locking is limited in sqlite.)"
     #  / JD 20161111
 
-
-    def __init__(self, staging_dir, external_program_service, staging_repo, runfolder_repo, session_factory):
+    def __init__(self,
+                 staging_dir,
+                 external_program_service,
+                 staging_repo,
+                 runfolder_repo,
+                 project_dir_repo,
+                 session_factory):
         """
         Instantiate a new StagingService
         :param staging_dir: the directory to which files/dirs should be staged
         :param external_program_service: a instance of ExternalProgramService
         :param staging_repo: a instance of DatabaseBasedStagingRepository
         :param runfolder_repo: a instance of FileSystemBasedRunfolderRepository
+        :param project_dir_repo: a instance of GeneralProjectRepository
         :param session_factory: a factory method which can produce new sqlalchemy Session instances
         """
         self.staging_dir = staging_dir
         self.external_program_service = external_program_service
         self.staging_repo = staging_repo
         self.runfolder_repo = runfolder_repo
+        self.project_dir_repo = project_dir_repo
         self.session_factory = session_factory
         # Note if you want to test this class without having a actual tornado
         # IOLoop instantiated you you need to mock this.
@@ -83,7 +91,7 @@ class StagingService(object):
 
             if execution_result.status_code == 0:
                 staging_order.status = StagingStatus.staging_successful
-                log.info("Successfully staged: {}".format(staging_order))
+                log.info("Successfully staged: {} to: {}".format(staging_order, staging_order.get_staging_path()))
             else:
                 staging_order.status = StagingStatus.staging_failed
                 log.info("Failed in staging: {} because rsync returned exit code: {}".
@@ -124,7 +132,6 @@ class StagingService(object):
             self.io_loop_factory().spawn_callback(StagingService._copy_dir,
                                                   **args_for_copy_dir)
 
-
         # TODO Better error handling
         except Exception as e:
             stage_order.status = StagingStatus.staging_failed
@@ -142,8 +149,8 @@ class StagingService(object):
         :param runfolder_id: identifier (name) of runfolder that should be staged
         :param projects_to_stage: defaults to None, otherwise only stage the project names given in this list, i.e.
                                   ["ABC_123", "DEF_456"]
-        :return: the ids of the stage orders created. This can than be used to poll for status using e.g.
-                `get_status_of_stage_order`
+        :return: the ids of the stage orders created, as a dict of project -> stage id.
+         This can than be used to poll for status using e.g. `get_status_of_stage_order`
         """
 
         runfolder = self.runfolder_repo.get_runfolder(runfolder_id)
@@ -158,14 +165,13 @@ class StagingService(object):
         if not projects_to_stage:
             projects_to_stage = names_of_project_on_runfolder
 
-
         log.debug("Projects to stage: {}".format(projects_to_stage))
 
         if not self._validate_project_lists(names_of_project_on_runfolder, projects_to_stage):
             raise ProjectNotFoundException("Projects to stage: {} do not match projects on runfolder: {}".
                                            format(projects_to_stage, names_of_project_on_runfolder))
 
-        stage_order_ids = []
+        project_and_stage_order_ids = {}
         for project in runfolder.projects:
             if project.name in projects_to_stage:
                 # TODO Verify that there is no currently ongoing staging order before
@@ -176,9 +182,33 @@ class StagingService(object):
                                                                        staging_target_dir=self.staging_dir)
                 log.debug("Created a staging order: {}".format(staging_order))
                 self.stage_order(staging_order)
-                stage_order_ids.append(staging_order.id)
+                project_and_stage_order_ids[project.name] = staging_order.id
 
-        return stage_order_ids
+        return project_and_stage_order_ids
+
+    def stage_directory(self, dir_name):
+        """
+        Stage a project directory from a "general" directory
+        :param dir_name: to stage from
+        :return: a dictionary for project name -> staging id
+        """
+        known_projects = self.project_dir_repo.get_projects()
+
+        matching_project = filter(lambda p: p.name == dir_name, known_projects)
+
+        if not matching_project:
+            raise ProjectNotFoundException("Could not find a project with name: {}".format(dir_name))
+        if len(matching_project) > 1:
+            raise TooManyProjectsFound("Found more than one project matching name: {}. This should"
+                                      "not be possible...".format(dir()))
+
+        exact_project = matching_project[0]
+
+        staging_order = self.staging_repo.create_staging_order(source=exact_project.path,
+                                                               status=StagingStatus.pending,
+                                                               staging_target_dir=self.staging_dir)
+        self.stage_order(staging_order)
+        return {exact_project.name: staging_order.id}
 
     def get_stage_order_by_id(self, stage_order_id):
         """
