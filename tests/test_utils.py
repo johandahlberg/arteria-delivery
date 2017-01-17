@@ -20,9 +20,11 @@ class MockIOLoop():
 
 class MockExternalRunnerService():
 
-    def __init__(self, return_status=0, throw=False):
+    def __init__(self, return_status=0, stdout="stdout", stderr="stderr", throw=False):
         self.return_status = return_status
         self.throw = throw
+        self.stdout = stdout
+        self.stderr = stderr
 
     def run(self, cmd):
         if self.throw:
@@ -34,8 +36,8 @@ class MockExternalRunnerService():
     def wait_for_execution(self, execution):
         time.sleep(0.1)
         return ExecutionResult(status_code=self.return_status,
-                               stderr="stderr",
-                               stdout="stdout")
+                               stderr=self.stderr,
+                               stdout=self.stdout)
 
 
 class TestUtils:

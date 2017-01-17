@@ -46,6 +46,9 @@ class StagingOrder(SQLAlchemyBase):
     # The target path into which the file/directory will be moved
     staging_target = Column(String)
 
+    # The size of the staging order in bytes
+    size = Column(Integer)
+
     # The pid of the processes which is carrying out the staging, alternatively which
     # which did do it if the status is no longer in progress.
     pid = Column(Integer)

@@ -139,9 +139,9 @@ class StagingHandler(BaseRestHandler):
            "status": "staging_successful"
         }
         """
-        status = self.staging_service.get_status_of_stage_order(stage_id)
-        if status:
-            self.write_json({'status': status.name})
+        stage_order = self.staging_service.get_stage_order_by_id(stage_id)
+        if stage_order:
+            self.write_json({'status': stage_order.status.name, 'size': stage_order.size})
         else:
             self.set_status(NOT_FOUND, reason='No stage order with id: {} found.'.format(stage_id))
 

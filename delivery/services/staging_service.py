@@ -2,6 +2,8 @@
 import logging
 import os
 import signal
+import re
+
 
 from tornado.ioloop import IOLoop
 
@@ -80,7 +82,7 @@ class StagingService(object):
         staging_order = staging_repo.get_staging_order_by_id(staging_order_id, session)
         try:
 
-            cmd = ['rsync', '-r', staging_order.source, staging_order.staging_target]
+            cmd = ['rsync', '--stats', '-r', '-h', staging_order.source, staging_order.staging_target]
 
             execution = external_program_service.run(cmd)
 
@@ -90,6 +92,16 @@ class StagingService(object):
             execution_result = external_program_service.wait_for_execution(execution)
 
             if execution_result.status_code == 0:
+
+                # Parse the file size from the output of rsync stats:
+                # Total file size: 207,707,566 bytes
+                match = re.search('Total file size: ([\d,]+) bytes',
+                                            execution_result.stdout,
+                                            re.MULTILINE)
+                size_of_transfer = match.group(1)
+                size_of_transfer = int(size_of_transfer.replace(",", ""))
+                staging_order.size = size_of_transfer
+
                 staging_order.status = StagingStatus.staging_successful
                 log.info("Successfully staged: {} to: {}".format(staging_order, staging_order.get_staging_path()))
             else:

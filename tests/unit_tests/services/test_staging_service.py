@@ -36,7 +36,26 @@ class TestStagingService(unittest.TestCase):
 
         self.mock_general_project_repo = mock.MagicMock()
 
-        mock_external_runner_service = MockExternalRunnerService()
+        stdout_mimicing_rsync = """
+            Number of files: 1 (reg: 1)
+            Number of created files: 0
+            Number of deleted files: 0
+            Number of regular files transferred: 1
+            Total file size: 207,707,566 bytes
+            Total transferred file size: 207,707,566 bytes
+            Literal data: 207,707,566 bytes
+            Matched data: 0 bytes
+            File list size: 0
+            File list generation time: 0.001 seconds
+            File list transfer time: 0.000 seconds
+            Total bytes sent: 207,758,378
+            Total bytes received: 35
+
+            sent 207,758,378 bytes  received 35 bytes  138,505,608.67 bytes/sec
+            total size is 207,707,566  speedup is 1.00
+        """
+
+        mock_external_runner_service = MockExternalRunnerService(stdout=stdout_mimicing_rsync)
         mock_staging_repo = mock.MagicMock()
         mock_staging_repo.get_staging_order_by_id.return_value = self.staging_order1
         mock_staging_repo.create_staging_order.return_value = self.staging_order1
@@ -61,7 +80,11 @@ class TestStagingService(unittest.TestCase):
         def _get_stating_status():
             return self.staging_order1.status
 
+        def _get_staging_size():
+            return self.staging_order1.size
+
         assert_eventually_equals(self, 1, _get_stating_status, StagingStatus.staging_successful)
+        self.assertEqual(self.staging_order1.size, 207707566)
 
     # - Set status to failed if rsyncing is not successful
     def test_unsuccessful_staging_order(self):
