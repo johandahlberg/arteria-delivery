@@ -24,6 +24,12 @@ class TestIntegration(AsyncHTTPTestCase):
         status_response = self.wait()
         return json.loads(status_response.body)["status"]
 
+    def _get_size(self, staging_link):
+        self.http_client.fetch(staging_link, self.stop)
+        status_response = self.wait()
+        return json.loads(status_response.body)["size"]
+
+
     API_BASE = "/api/1.0"
 
     def get_app(self):
@@ -84,6 +90,14 @@ class TestIntegration(AsyncHTTPTestCase):
                                      delay=1,
                                      f=partial(self._get_delivery_status, link),
                                      expected=StagingStatus.staging_successful.name)
+
+            # The size of the fake project is 15 bytes
+            assert_eventually_equals(self,
+                                     timeout=5,
+                                     delay=1,
+                                     f=partial(self._get_size, link),
+                                     expected=15)
+
         staging_order_project_and_id = response_json.get("staging_order_ids")
 
         for project, staging_id in staging_order_project_and_id.iteritems():
