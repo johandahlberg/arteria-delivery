@@ -2,7 +2,7 @@
 import os
 import enum as base_enum
 
-from sqlalchemy import Column, Integer, String, Enum
+from sqlalchemy import Column, Integer, BigInteger, String, Enum
 from sqlalchemy.ext.declarative import declarative_base
 
 """
@@ -47,7 +47,7 @@ class StagingOrder(SQLAlchemyBase):
     staging_target = Column(String)
 
     # The size of the staging order in bytes
-    size = Column(Integer)
+    size = Column(BigInteger)
 
     # The pid of the processes which is carrying out the staging, alternatively which
     # which did do it if the status is no longer in progress.
