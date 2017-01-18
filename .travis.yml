@@ -4,7 +4,9 @@ python:
     - "2.7"
 
 before_install:
-    - sudo pip install virtualenv rsync
+    - sudo apt-get -q update
+    - sudo apt-get install -y rsync
+    - sudo pip install virtualenv
     - virtualenv $TRAVIS_BUILD_DIR/arteria-delivery/
 
 install:
