@@ -1,8 +1,6 @@
 
 
 import json
-import os
-from mock import MagicMock
 from functools import partial
 
 
@@ -36,9 +34,6 @@ class TestIntegration(AsyncHTTPTestCase):
 
         # Get an as similar app as possible, tough note that we don't use the
         #  app service start method to start up the the application
-        # TODO
-        # Also not that that we need to mock away the delivery service, since Mover is
-        # not expected to be installed on the developers system.
         path_to_this_file = os.path.abspath(
             os.path.dirname(os.path.realpath(__file__)))
         app_svc = AppService.create(product_name="test_delivery_service",
@@ -73,6 +68,9 @@ class TestIntegration(AsyncHTTPTestCase):
         self.assertEqual(first_project["name"], "ABC_123")
 
     def test_can_stage_and_delivery_runfolder(self):
+        # Note that this is a test which skips mover (since to_outbox is not expected to be installed on the system
+        # where this runs)
+
         url = "/".join([self.API_BASE, "stage", "runfolder", "160930_ST-E00216_0111_BH37CWALXX"])
         response = self.fetch(url, method='POST', body='')
         self.assertEqual(response.code, 202)
@@ -102,7 +100,8 @@ class TestIntegration(AsyncHTTPTestCase):
 
         for project, staging_id in staging_order_project_and_id.iteritems():
             delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
-            delivery_body = {'delivery_project_id': 'fakedeliveryid2016'}
+            delivery_body = {'delivery_project_id': 'fakedeliveryid2016',
+                             'skip_mover': True}
             delivery_resp = self.fetch(delivery_url, method='POST', body=json.dumps(delivery_body))
             delivery_resp_as_json = json.loads(delivery_resp.body)
             delivery_link = delivery_resp_as_json['delivery_order_link']
@@ -111,9 +110,12 @@ class TestIntegration(AsyncHTTPTestCase):
                                      timeout=5,
                                      delay=1,
                                      f=partial(self._get_delivery_status, delivery_link),
-                                     expected=DeliveryStatus.delivery_successful.name)
+                                     expected=DeliveryStatus.delivery_skipped.name)
 
     def test_can_stage_and_delivery_project_dir(self):
+        # Note that this is a test which skips mover (since to_outbox is not expected to be installed on the system
+        # where this runs)
+
         url = "/".join([self.API_BASE, "stage", "project", "my_test_project"])
         response = self.fetch(url, method='POST', body='')
         self.assertEqual(response.code, 202)
@@ -135,7 +137,8 @@ class TestIntegration(AsyncHTTPTestCase):
 
         for project, staging_id in staging_order_project_and_id.iteritems():
             delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
-            delivery_body = {'delivery_project_id': 'fakedeliveryid2016'}
+            delivery_body = {'delivery_project_id': 'fakedeliveryid2016',
+                             'skip_mover': True}
             delivery_resp = self.fetch(delivery_url, method='POST', body=json.dumps(delivery_body))
             delivery_resp_as_json = json.loads(delivery_resp.body)
             delivery_link = delivery_resp_as_json['delivery_order_link']
@@ -144,7 +147,7 @@ class TestIntegration(AsyncHTTPTestCase):
                                      timeout=5,
                                      delay=1,
                                      f=partial(self._get_delivery_status, delivery_link),
-                                     expected=DeliveryStatus.delivery_successful.name)
+                                     expected=DeliveryStatus.delivery_skipped.name)
 
 
 

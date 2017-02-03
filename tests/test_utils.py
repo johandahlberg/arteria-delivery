@@ -17,29 +17,6 @@ class MockIOLoop():
     def spawn_callback(self, f, **args):
         f(**args)
 
-
-class MockExternalRunnerService():
-
-    def __init__(self, return_status=0, stdout="stdout", stderr="stderr", throw=False):
-        self.return_status = return_status
-        self.throw = throw
-        self.stdout = stdout
-        self.stderr = stderr
-
-    def run(self, cmd):
-        if self.throw:
-            raise Exception("Test the exception handling...")
-        mock_process = MagicMock()
-        execution = Execution(pid=random.randint(1, 1000), process_obj=mock_process)
-        return execution
-
-    def wait_for_execution(self, execution):
-        time.sleep(0.1)
-        return ExecutionResult(status_code=self.return_status,
-                               stderr=self.stderr,
-                               stdout=self.stdout)
-
-
 class TestUtils:
     DUMMY_CONFIG = {"monitored_directory": "/foo"}
 
