@@ -111,7 +111,8 @@ class MoverDeliveryService(object):
         if hits:
             return hits.group(1)
         else:
-            raise CannotParseMoverOutputException("Could not parse mover id from: {}".format(mover_info_result))
+            raise CannotParseMoverOutputException("Could not parse mover info status from: {}".
+                                                  format(mover_info_result))
 
     def _run_mover_info(self, mover_delivery_order_id):
 
