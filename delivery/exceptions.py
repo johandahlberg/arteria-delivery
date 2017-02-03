@@ -27,3 +27,9 @@ class InvalidStatusException(Exception):
     on a StagingOrder which is already `in_progress`
     """
     pass
+
+class CannotParseMoverOutputException(Exception):
+    """
+    Should be raised when movers output cannot be parsed for e.g. a mover delivery id.
+    """
+    pass

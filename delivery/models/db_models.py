@@ -75,6 +75,7 @@ class DeliveryStatus(base_enum.Enum):
     delivery_in_progress = 'delivery_in_progress'
     delivery_successful = 'delivery_successful'
     delivery_failed = 'delivery_failed'
+    delivery_skipped = 'delivery_skipped'
 
 
 class DeliveryOrder(SQLAlchemyBase):
