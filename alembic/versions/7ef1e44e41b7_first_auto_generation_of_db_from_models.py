@@ -22,7 +22,7 @@ def upgrade():
     sa.Column('delivery_source', sa.String(), nullable=False),
     sa.Column('delivery_project', sa.String(), nullable=False),
     sa.Column('delivery_status', sa.Enum('mover_processing_delivery', 'delivery_failed', 'delivery_in_progress',
-                                         'delivery_successful', 'pending', 'mover_failed_delivery', name='deliverystatus'), nullable=True),
+                                         'delivery_successful', 'pending', 'mover_failed_delivery', 'delivery_skipped', name='deliverystatus'), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('staging_orders',
