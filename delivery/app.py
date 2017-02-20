@@ -1,4 +1,6 @@
 
+import os
+
 from tornado.web import URLSpec as url
 
 from sqlalchemy import create_engine
@@ -56,16 +58,17 @@ def routes(**kwargs):
     ]
 
 
-def create_and_migrate_db(db_engine, db_connection_string):
+def create_and_migrate_db(db_engine, alembic_path, db_connection_string):
     """
     Configures alembic and runs any none applied migrations found in the
     `scripts_location` folder.
     :param db_engine: engine handle for the database to apply the migrations to
+    :param alembic_path: path to root directory for alembic migrations
     :return: None
     """
-    # TODO Do not hard code
-    alembic_cfg = AlembicConfig('config/alembic.ini')
-    alembic_cfg.set_main_option("script_location", "alembic/")
+    alembic_cfg = AlembicConfig()
+    alembic_cfg.set_main_option("sqlalchemy.url", db_connection_string)
+    alembic_cfg.set_main_option("script_location", os.path.join(alembic_path))
 
     with db_engine.begin() as connection:
         alembic_cfg.attributes["connection"] = connection
@@ -102,7 +105,8 @@ def compose_application(config):
     db_connection_string = config["db_connection_string"]
     engine = create_engine(db_connection_string, echo=False)
 
-    create_and_migrate_db(engine, db_connection_string)
+    alembic_path = config["alembic_path"]
+    create_and_migrate_db(engine, alembic_path, db_connection_string)
 
     session_factory = scoped_session(sessionmaker())
     session_factory.configure(bind=engine)
