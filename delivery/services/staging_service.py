@@ -4,9 +4,7 @@ import os
 import signal
 import re
 
-
-from tornado.ioloop import IOLoop
-
+from tornado import gen
 
 from delivery.models.db_models import StagingStatus
 from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException,\
@@ -57,11 +55,9 @@ class StagingService(object):
         self.runfolder_repo = runfolder_repo
         self.project_dir_repo = project_dir_repo
         self.session_factory = session_factory
-        # Note if you want to test this class without having a actual tornado
-        # IOLoop instantiated you you need to mock this.
-        self.io_loop_factory = IOLoop.current
 
     @staticmethod
+    @gen.coroutine
     def _copy_dir(staging_order_id, external_program_service, session_factory, staging_repo):
         """
         Copies the file or directory indicated by the staging order by calling the external_program_service.
@@ -89,13 +85,14 @@ class StagingService(object):
             staging_order.pid = execution.pid
             session.commit()
 
-            execution_result = external_program_service.wait_for_execution(execution)
+            execution_result = yield external_program_service.wait_for_execution(execution)
+            log.debug("Execution result: {}".format(execution_result))
             if execution_result.status_code == 0:
 
                 # Parse the file size from the output of rsync stats:
                 # Total file size: 207,707,566 bytes
                 match = re.search('Total file size: ([\d,]+) bytes',
-                                  str(execution_result.stdout),
+                                  execution_result.stdout,
                                   re.MULTILINE)
                 size_of_transfer = match.group(1)
                 size_of_transfer = int(size_of_transfer.replace(",", ""))
@@ -117,6 +114,7 @@ class StagingService(object):
             # Always commit the state change to the database
             session.commit()
 
+    @gen.coroutine
     def stage_order(self, stage_order):
         """
         Validate a staging order and hand of the actual stating to a separate thread.
@@ -140,8 +138,7 @@ class StagingService(object):
                                  "staging_repo": self.staging_repo,
                                  "session_factory": self.session_factory}
 
-            self.io_loop_factory().spawn_callback(StagingService._copy_dir,
-                                                  **args_for_copy_dir)
+            yield StagingService._copy_dir(**args_for_copy_dir)
 
         # TODO Better error handling
         except Exception as e:

@@ -78,15 +78,13 @@ class StagingRunfolderHandler(BaseStagingHandler):
 
             log.debug("Got the following projects to stage: {}".format(projects_to_stage))
 
-            staging_order_projects_and_ids = yield Task(self.staging_service.stage_runfolder,
-                                                        runfolder_id, projects_to_stage)
+            staging_order_projects_and_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
 
             link_results, id_results = self._construct_response_from_project_and_status(staging_order_projects_and_ids)
 
             self.set_status(ACCEPTED)
             self.write_json({'staging_order_links': link_results,
                              'staging_order_ids': id_results})
-            self.finish()
         except ProjectNotFoundException as e:
             self.set_status(NOT_FOUND, reason=e.msg)
 
