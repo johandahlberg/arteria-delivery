@@ -2,6 +2,7 @@
 import json
 import logging
 
+from tornado.gen import coroutine
 
 from delivery.handlers import *
 from delivery.handlers.utility_handlers import ArteriaDeliveryBaseHandler
@@ -18,6 +19,7 @@ class DeliverByStageIdHandler(ArteriaDeliveryBaseHandler):
         self.delivery_service = kwargs["delivery_service"]
         super(DeliverByStageIdHandler, self).initialize(kwargs)
 
+    @coroutine
     def post(self, staging_id):
         request_data = self.body_as_object(required_members=["delivery_project_id"])
         delivery_project_id = request_data["delivery_project_id"]
@@ -33,10 +35,10 @@ class DeliverByStageIdHandler(ArteriaDeliveryBaseHandler):
             log.debug("Will not skip running mover!")
             skip_mover = False
 
-        delivery_id = self.delivery_service.deliver_by_staging_id(staging_id=staging_id,
-                                                                  delivery_project=delivery_project_id,
-                                                                  md5sum_file=md5sum_file,
-                                                                  skip_mover=skip_mover)
+        delivery_id = yield self.delivery_service.deliver_by_staging_id(staging_id=staging_id,
+                                                                        delivery_project=delivery_project_id,
+                                                                        md5sum_file=md5sum_file,
+                                                                        skip_mover=skip_mover)
 
         status_end_point = "{0}://{1}{2}".format(self.request.protocol,
                                                  self.request.host,
@@ -53,8 +55,9 @@ class DeliveryStatusHandler(ArteriaDeliveryBaseHandler):
         self.delivery_service = kwargs["delivery_service"]
         super(DeliveryStatusHandler, self).initialize(kwargs)
 
+    @coroutine
     def get(self, delivery_order_id):
-        delivery_order = self.delivery_service.update_delivery_status(delivery_order_id)
+        delivery_order = yield self.delivery_service.update_delivery_status(delivery_order_id)
 
         self.write_json({'id': delivery_order.id,
                          'status': delivery_order.delivery_status.name,

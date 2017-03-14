@@ -1,9 +1,7 @@
 
 import logging
 import re
-import time
-
-from tornado.ioloop import IOLoop
+from tornado import gen
 
 from delivery.exceptions import InvalidStatusException, CannotParseMoverOutputException
 from delivery.models.db_models import StagingStatus, DeliveryStatus
@@ -20,7 +18,6 @@ class MoverDeliveryService(object):
         self.staging_service = staging_service
         self.delivery_repo = delivery_repo
         self.session_factory = session_factory
-        self.io_loop_factory = IOLoop.current
 
     @staticmethod
     def _parse_mover_id_from_mover_output(mover_output):
@@ -32,6 +29,7 @@ class MoverDeliveryService(object):
             raise CannotParseMoverOutputException("Could not parse mover id from: {}".format(mover_output))
 
     @staticmethod
+    @gen.coroutine
     def _run_mover(delivery_order_id, delivery_order_repo, external_program_service, session_factory):
         session = session_factory()
 
@@ -53,7 +51,7 @@ class MoverDeliveryService(object):
             delivery_order.mover_pid = execution.pid
             session.commit()
 
-            execution_result = external_program_service.wait_for_execution(execution)
+            execution_result = yield external_program_service.wait_for_execution(execution)
 
             if execution_result.status_code == 0:
                 delivery_order.delivery_status = DeliveryStatus.delivery_in_progress
@@ -74,6 +72,7 @@ class MoverDeliveryService(object):
             # Always commit the state change to the database
             session.commit()
 
+    @gen.coroutine
     def deliver_by_staging_id(self, staging_id, delivery_project, md5sum_file, skip_mover=False):
 
         stage_order = self.staging_service.get_stage_order_by_id(staging_id)
@@ -97,8 +96,7 @@ class MoverDeliveryService(object):
             delivery_order.delivery_status = DeliveryStatus.delivery_skipped
             session.commit()
         else:
-            self.io_loop_factory().spawn_callback(MoverDeliveryService._run_mover,
-                                                  **args_for_run_mover)
+            yield MoverDeliveryService._run_mover(**args_for_run_mover)
 
         return delivery_order.id
 
@@ -114,10 +112,11 @@ class MoverDeliveryService(object):
             raise CannotParseMoverOutputException("Could not parse mover info status from: {}".
                                                   format(mover_info_result))
 
+    @gen.coroutine
     def _run_mover_info(self, mover_delivery_order_id):
 
         cmd = ['moverinfo', '-i', mover_delivery_order_id]
-        execution_result = self.moverinfo_external_program_service.run_and_wait(cmd)
+        execution_result = yield self.moverinfo_external_program_service.run_and_wait(cmd)
 
         if execution_result.status_code == 0:
             mover_status = MoverDeliveryService._parse_status_from_mover_info_result(execution_result.stdout)
@@ -126,11 +125,12 @@ class MoverDeliveryService(object):
                                                   format(execution_result))
         return mover_status
 
+    @gen.coroutine
     def update_delivery_status(self, delivery_order_id):
         delivery_order = self.get_delivery_order_by_id(delivery_order_id)
 
         if delivery_order.mover_delivery_id and delivery_order.delivery_status == DeliveryStatus.delivery_in_progress:
-            mover_info_result = self._run_mover_info(delivery_order.mover_delivery_id)
+            mover_info_result = yield self._run_mover_info(delivery_order.mover_delivery_id)
             session = self.session_factory()
 
             if mover_info_result == 'Delivered':
