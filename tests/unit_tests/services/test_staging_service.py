@@ -20,7 +20,7 @@ class TestStagingService(unittest.TestCase):
             self.orders_state = []
 
         def get_staging_order_by_id(self, identifier, custom_session=None):
-            return filter(lambda x: x.id == identifier, self.orders_state)[0]
+            return list(filter(lambda x: x.id == identifier, self.orders_state))[0]
 
         def create_staging_order(self, source, status, staging_target_dir):
 
@@ -207,6 +207,8 @@ class TestStagingService(unittest.TestCase):
         mock_os.kill.assert_called_with(self.staging_order1.pid, signal.SIGTERM)
         self.assertFalse(actual)
 
+    @mock.patch('delivery.services.staging_service.os')
+    def test_kill_stage_order_not_valid_state(self, mock_os):
         # If the status is not in progress it should not be possible to kill it.
         self.staging_order1.status = StagingStatus.staging_successful
         actual = self.staging_service.kill_process_of_staging_order(self.staging_order1.id)

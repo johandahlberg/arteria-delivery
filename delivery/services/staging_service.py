@@ -90,14 +90,13 @@ class StagingService(object):
             session.commit()
 
             execution_result = external_program_service.wait_for_execution(execution)
-
             if execution_result.status_code == 0:
 
                 # Parse the file size from the output of rsync stats:
                 # Total file size: 207,707,566 bytes
                 match = re.search('Total file size: ([\d,]+) bytes',
-                                            execution_result.stdout,
-                                            re.MULTILINE)
+                                  str(execution_result.stdout),
+                                  re.MULTILINE)
                 size_of_transfer = match.group(1)
                 size_of_transfer = int(size_of_transfer.replace(",", ""))
                 staging_order.size = size_of_transfer
@@ -155,7 +154,7 @@ class StagingService(object):
         projects_on_runfolder_set = set(projects_on_runfolder)
         return projects_to_stage_set.issubset(projects_on_runfolder_set)
 
-    def stage_runfolder(self, runfolder_id, projects_to_stage=None):
+    def stage_runfolder(self, runfolder_id, projects_to_stage=None, callback=None):
         """
         Stage a runfolder
         :param runfolder_id: identifier (name) of runfolder that should be staged
@@ -171,7 +170,7 @@ class StagingService(object):
             raise RunfolderNotFoundException(
                 "Couldn't find runfolder matching: {}".format(runfolder_id))
 
-        names_of_project_on_runfolder = map(lambda x: x.name, runfolder.projects)
+        names_of_project_on_runfolder = list(map(lambda x: x.name, runfolder.projects))
 
         # If no projects have been specified, stage all projects
         if not projects_to_stage:
@@ -206,7 +205,7 @@ class StagingService(object):
         """
         known_projects = self.project_dir_repo.get_projects()
 
-        matching_project = filter(lambda p: p.name == dir_name, known_projects)
+        matching_project = list(filter(lambda p: p.name == dir_name, known_projects))
 
         if not matching_project:
             raise ProjectNotFoundException("Could not find a project with name: {}".format(dir_name))

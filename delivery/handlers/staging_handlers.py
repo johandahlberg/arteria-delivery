@@ -1,6 +1,9 @@
 
 import logging
 
+from tornado.gen import Task, coroutine
+from tornado.web import asynchronous
+
 from arteria.web.handlers import BaseRestHandler
 
 from delivery.handlers import *
@@ -21,7 +24,7 @@ class BaseStagingHandler(BaseRestHandler):
     def _construct_response_from_project_and_status(self, staging_order_projects_and_ids):
         link_results = {}
         id_results = {}
-        for project, status_id in staging_order_projects_and_ids.iteritems():
+        for project, status_id in staging_order_projects_and_ids.items():
             link_results[project] = self._construct_status_endpoint(status_id)
             id_results[project] = status_id
 
@@ -37,6 +40,7 @@ class StagingRunfolderHandler(BaseStagingHandler):
     def initialize(self, staging_service, **kwargs):
         self.staging_service = staging_service
 
+    @coroutine
     def post(self, runfolder_id):
         """
         Attempt to stage projects from the the specified runfolder, so that they can then be delivered.
@@ -74,13 +78,15 @@ class StagingRunfolderHandler(BaseStagingHandler):
 
             log.debug("Got the following projects to stage: {}".format(projects_to_stage))
 
-            staging_order_projects_and_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
+            staging_order_projects_and_ids = yield Task(self.staging_service.stage_runfolder,
+                                                        runfolder_id, projects_to_stage)
 
             link_results, id_results = self._construct_response_from_project_and_status(staging_order_projects_and_ids)
 
             self.set_status(ACCEPTED)
             self.write_json({'staging_order_links': link_results,
                              'staging_order_ids': id_results})
+            self.finish()
         except ProjectNotFoundException as e:
             self.set_status(NOT_FOUND, reason=e.msg)
 
