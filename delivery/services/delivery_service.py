@@ -21,6 +21,7 @@ class MoverDeliveryService(object):
 
     @staticmethod
     def _parse_mover_id_from_mover_output(mover_output):
+        log.debug('Mover output was: {}'.format(mover_output))
         pattern = re.compile('^id=(\w+-\w+-\d+)\sFound')
         hits = pattern.match(mover_output)
         if hits:

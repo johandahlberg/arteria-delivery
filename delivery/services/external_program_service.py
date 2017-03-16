@@ -35,8 +35,8 @@ class ExternalProgramService(object):
         :return: an ExecutionResult for the execution
         """
         status_code = yield execution.process_obj.wait_for_exit(raise_error=False)
-        out = str(execution.process_obj.stdout.read())
-        err = str(execution.process_obj.stderr.read())
+        out = execution.process_obj.stdout.read().decode('UTF-8')
+        err = execution.process_obj.stderr.read().decode('UTF-8')
 
         return ExecutionResult(out, err, status_code)
 
