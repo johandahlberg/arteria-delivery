@@ -5,13 +5,10 @@ python:
 
 before_install:
     - sudo apt-get -q update
-    - sudo apt-get install -y rsync
-    - sudo pip install virtualenv
-    - virtualenv --python=python3.6 $TRAVIS_BUILD_DIR/arteria-delivery/
+    - sudo apt-get install -y rsync python3-pip
 
 install:
-    - source $TRAVIS_BUILD_DIR/arteria-delivery/bin/activate
-    - pip install -e . -r ./requirements/dev
+    - pip3 install -e . -r ./requirements/dev
 
 script:
     - nosetests tests/
