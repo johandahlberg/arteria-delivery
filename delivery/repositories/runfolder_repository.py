@@ -28,8 +28,7 @@ class FileSystemBasedRunfolderRepository(object):
         # TODO Filter based on expression for runfolders...
         runfolder_expression = r"^\d+_"
 
-        directories = self.file_system_service.find_runfolder_directories(
-            self._base_path)
+        directories = self.file_system_service.find_runfolder_directories(self._base_path)
         for directory in directories:
             if re.match(runfolder_expression, os.path.basename(directory)):
 
@@ -43,13 +42,16 @@ class FileSystemBasedRunfolderRepository(object):
                 runfolder = Runfolder(name=name, path=path, projects=None)
 
                 def project_from_dir(d):
-                    return RunfolderProject(name=os.path.basename(d), path=os.path.join(projects_base_dir, d), runfolder_path=path)
+                    return RunfolderProject(
+                        name=os.path.basename(d),
+                        path=os.path.join(projects_base_dir, d),
+                        runfolder_path=path)
 
                 # There are scenarios where there are no project directories in the runfolder,
                 # i.e. when fastq files have not yet been divided into projects
                 if project_directories:
-                    runfolder.projects = map(
-                        project_from_dir, project_directories)
+                    runfolder.projects = list(map(
+                        project_from_dir, project_directories))
 
                 yield runfolder
 
@@ -69,7 +71,7 @@ class FileSystemBasedRunfolderRepository(object):
                 matching the given name.
         """
         runfolders = self.get_runfolders()
-        matching_name = [r for r in runfolders if r.name == runfolder]
+        matching_name = list([r for r in runfolders if r.name == runfolder])
         if len(matching_name) > 1:
             raise AssertionError("Found more than 1 runfolder matching: ".format(r))
         if len(matching_name) > 0 and matching_name[0]:

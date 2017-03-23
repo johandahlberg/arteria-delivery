@@ -54,7 +54,10 @@ def routes(**kwargs):
             name="delivery_by_state_id", kwargs=kwargs),
 
         url(r"/api/1.0/deliver/status/(.+)", DeliveryStatusHandler,
-            name="delivery_status", kwargs=kwargs)
+            name="delivery_status", kwargs=kwargs),
+
+        #url(r"/api/1.0/test", AsyncHandler,
+        #    name="async", kwargs=kwargs),
     ]
 
 

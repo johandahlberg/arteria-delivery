@@ -79,7 +79,7 @@ class TestIntegration(AsyncHTTPTestCase):
 
         staging_status_links = response_json.get("staging_order_links")
 
-        for project, link in staging_status_links.iteritems():
+        for project, link in staging_status_links.items():
 
             self.assertEqual(project, "ABC_123")
 
@@ -98,7 +98,7 @@ class TestIntegration(AsyncHTTPTestCase):
 
         staging_order_project_and_id = response_json.get("staging_order_ids")
 
-        for project, staging_id in staging_order_project_and_id.iteritems():
+        for project, staging_id in staging_order_project_and_id.items():
             delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
             delivery_body = {'delivery_project_id': 'fakedeliveryid2016',
                              'skip_mover': True}
@@ -124,7 +124,7 @@ class TestIntegration(AsyncHTTPTestCase):
 
         staging_status_links = response_json.get("staging_order_links")
 
-        for project, link in staging_status_links.iteritems():
+        for project, link in staging_status_links.items():
             self.assertEqual(project, "my_test_project")
 
             assert_eventually_equals(self,
@@ -135,7 +135,7 @@ class TestIntegration(AsyncHTTPTestCase):
 
         staging_order_project_and_id = response_json.get("staging_order_ids")
 
-        for project, staging_id in staging_order_project_and_id.iteritems():
+        for project, staging_id in staging_order_project_and_id.items():
             delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
             delivery_body = {'delivery_project_id': 'fakedeliveryid2016',
                              'skip_mover': True}

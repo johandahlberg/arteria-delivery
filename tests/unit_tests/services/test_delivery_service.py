@@ -1,7 +1,9 @@
 
 import random
-import unittest
 from mock import MagicMock, create_autospec
+
+from tornado.testing import AsyncTestCase, gen_test
+from tornado.gen import coroutine
 
 from delivery.services.external_program_service import ExternalProgramService
 from delivery.services.delivery_service import MoverDeliveryService
@@ -12,7 +14,7 @@ from delivery.exceptions import InvalidStatusException, CannotParseMoverOutputEx
 from tests.test_utils import MockIOLoop, assert_eventually_equals
 
 
-class TestMoverDeliveryService(unittest.TestCase):
+class TestMoverDeliveryService(AsyncTestCase):
 
     def setUp(self):
 
@@ -25,14 +27,21 @@ class TestMoverDeliveryService(unittest.TestCase):
         mock_process = MagicMock()
         mock_execution = Execution(pid=random.randint(1, 1000), process_obj=mock_process)
         mock_mover_runner.run.return_value = mock_execution
-        mock_mover_runner.wait_for_execution.return_value = ExecutionResult(stdout=example_mover_stdout,
-                                                                            stderr="",
-                                                                            status_code=0)
+
+        @coroutine
+        def wait_as_coroutine(x):
+            return ExecutionResult(stdout=example_mover_stdout, stderr="", status_code=0)
+
+        mock_mover_runner.wait_for_execution = wait_as_coroutine
 
         mock_moverinfo_runner = create_autospec(ExternalProgramService)
-        mock_moverinfo_runner.run_and_wait.return_value = ExecutionResult(stdout=example_moverinfo_stdout,
-                                                                          stderr="",
-                                                                          status_code=0)
+
+        @coroutine
+        def mover_info_wait_as_coroutine(x):
+            return ExecutionResult(stdout=example_moverinfo_stdout, stderr="", status_code=0)
+
+        mock_moverinfo_runner.run_and_wait = mover_info_wait_as_coroutine
+
         self.mock_staging_service = MagicMock()
         self.mock_delivery_repo = MagicMock()
 
@@ -52,8 +61,9 @@ class TestMoverDeliveryService(unittest.TestCase):
         self.mover_delivery_service.mover_external_program_service = mock_mover_runner
         self.mover_delivery_service.moverinfo_external_program_service = mock_moverinfo_runner
 
-        self.mover_delivery_service.io_loop_factory = MockIOLoop
+        super(TestMoverDeliveryService, self).setUp()
 
+    @gen_test
     def test_deliver_by_staging_id(self):
         staging_order = StagingOrder(source='/foo/bar', staging_target='/staging/dir/bar')
         staging_order.status = StagingStatus.staging_successful
@@ -61,30 +71,33 @@ class TestMoverDeliveryService(unittest.TestCase):
 
         self.mock_staging_service.get_delivery_order_by_id.return_value = self.delivery_order
 
-        self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
-                                                          delivery_project='xyz123',
-                                                          md5sum_file='md5sum_file')
+        res = yield self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
+                                                                      delivery_project='xyz123',
+                                                                      md5sum_file='md5sum_file')
 
         def _get_delivery_order():
             return self.delivery_order.delivery_status
         assert_eventually_equals(self, 1, _get_delivery_order, DeliveryStatus.delivery_in_progress)
 
+    @gen_test
     def test_update_delivery_status(self):
         delivery_order = DeliveryOrder(mover_delivery_id="TestCase_31-ngi2016001-1484739218 ",
                                        delivery_status=DeliveryStatus.delivery_in_progress)
         self.mock_delivery_repo.get_delivery_order_by_id.return_value = delivery_order
-        result = self.mover_delivery_service.update_delivery_status(self.delivery_order.id)
+        result = yield self.mover_delivery_service.update_delivery_status(self.delivery_order.id)
         self.assertEqual(result.delivery_status, DeliveryStatus.delivery_successful)
 
+    @gen_test
     def test_deliver_by_staging_id_raises_on_non_existent_stage_id(self):
         self.mock_staging_service.get_stage_order_by_id.return_value = None
 
         with self.assertRaises(InvalidStatusException):
 
-            self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
-                                                              delivery_project='foo',
-                                                              md5sum_file='md5sum_file')
+            yield self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
+                                                                    delivery_project='foo',
+                                                                    md5sum_file='md5sum_file')
 
+    @gen_test
     def test_deliver_by_staging_id_raises_on_non_successful_stage_id(self):
 
         staging_order = StagingOrder()
@@ -93,9 +106,9 @@ class TestMoverDeliveryService(unittest.TestCase):
 
         with self.assertRaises(InvalidStatusException):
 
-            self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
-                                                              delivery_project='foo',
-                                                              md5sum_file='md5sum_file')
+            yield self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
+                                                                    delivery_project='foo',
+                                                                    md5sum_file='md5sum_file')
 
     def test_get_status_of_delivery_order(self):
         delivery_order = DeliveryOrder(id=1,

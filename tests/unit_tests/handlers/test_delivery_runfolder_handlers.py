@@ -32,7 +32,7 @@ class TestRunfolderHandlers(AsyncHTTPTestCase):
         expected_json = json.dumps({"runfolders": expected_result}, default=lambda x: x.__dict__)
 
         self.assertEqual(response.code, 200)
-        self.assertEqual(response.body, expected_json)
+        self.assertDictEqual(json.loads(response.body), json.loads(expected_json))
 
     def test_get_runfolders_empty(self):
 
