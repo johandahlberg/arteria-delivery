@@ -78,7 +78,7 @@ class StagingService(object):
         staging_order = staging_repo.get_staging_order_by_id(staging_order_id, session)
         try:
 
-            cmd = ['rsync', '--stats', '-r', staging_order.source, staging_order.staging_target]
+            cmd = ['rsync', '--stats', '-r', '--copy-links', staging_order.source, staging_order.staging_target]
 
             execution = external_program_service.run(cmd)
 

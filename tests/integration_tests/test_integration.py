@@ -54,8 +54,13 @@ class TestIntegration(AsyncHTTPTestCase):
         response_json = json.loads(response.body)
         self.assertEqual(len(response_json), 1)
 
-        first_runfolder = response_json["runfolders"][0]
-        self.assertEqual(first_runfolder["name"], "160930_ST-E00216_0111_BH37CWALXX")
+        runfolder_names = []
+        for runfolder_json in response_json["runfolders"]:
+            runfolder_names.append(runfolder_json["name"])
+
+        self.assertIn("160930_ST-E00216_0112_AH37CWALXX", runfolder_names)
+
+        self.assertIn("160930_ST-E00216_0111_BH37CWALXX", runfolder_names)
 
     def test_can_return_projects(self):
         response = self.fetch(self.API_BASE + "/projects")
