@@ -25,6 +25,12 @@ class FileSystemBasedRunfolderRepository(object):
         self.file_system_service = file_system_service
 
     def _add_projects_to_runfolder(self, runfolder):
+        """
+        Will take the given runfolder and mutate the `projects` field.
+        If there are no projects found it will leave `projects` as None.
+        :param runfolder: to add projects to
+        :return: None
+        """
         try:
             projects_base_dir = os.path.join(runfolder.path, "Projects")
             project_directories = self.file_system_service.find_project_directories(
@@ -44,8 +50,6 @@ class FileSystemBasedRunfolderRepository(object):
         except FileNotFoundError as e:
             log.warning("Did not find Project folder for: {}".format(runfolder.name))
             pass
-        finally:
-            return runfolder
 
     def _get_runfolders(self):
         # TODO Filter based on expression for runfolders...
