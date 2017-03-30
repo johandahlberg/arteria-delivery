@@ -24,6 +24,29 @@ class FileSystemBasedRunfolderRepository(object):
         self._base_path = base_path
         self.file_system_service = file_system_service
 
+    def _add_projects_to_runfolder(self, runfolder):
+        try:
+            projects_base_dir = os.path.join(runfolder.path, "Projects")
+            project_directories = self.file_system_service.find_project_directories(
+                projects_base_dir)
+
+            def project_from_dir(d):
+                return RunfolderProject(
+                    name=os.path.basename(d),
+                    path=os.path.join(projects_base_dir, d),
+                    runfolder_path=runfolder.path)
+
+            # There are scenarios where there are no project directories in the runfolder,
+            # i.e. when fastq files have not yet been divided into projects
+            if project_directories:
+                runfolder.projects = list(map(
+                    project_from_dir, project_directories))
+        except FileNotFoundError as e:
+            log.warning("Did not find Project folder for: {}".format(runfolder.name))
+            pass
+        finally:
+            return runfolder
+
     def _get_runfolders(self):
         # TODO Filter based on expression for runfolders...
         runfolder_expression = r"^\d+_"
@@ -35,23 +58,8 @@ class FileSystemBasedRunfolderRepository(object):
                 name = os.path.basename(directory)
                 path = os.path.join(self._base_path, directory)
 
-                projects_base_dir = os.path.join(path, "Projects")
-                project_directories = self.file_system_service.find_project_directories(
-                    projects_base_dir)
-
                 runfolder = Runfolder(name=name, path=path, projects=None)
-
-                def project_from_dir(d):
-                    return RunfolderProject(
-                        name=os.path.basename(d),
-                        path=os.path.join(projects_base_dir, d),
-                        runfolder_path=path)
-
-                # There are scenarios where there are no project directories in the runfolder,
-                # i.e. when fastq files have not yet been divided into projects
-                if project_directories:
-                    runfolder.projects = list(map(
-                        project_from_dir, project_directories))
+                self._add_projects_to_runfolder(runfolder)
 
                 yield runfolder
 
