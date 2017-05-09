@@ -80,7 +80,7 @@ class TestMoverDeliveryService(AsyncTestCase):
         def _get_delivery_order():
             return self.delivery_order.delivery_status
         assert_eventually_equals(self, 1, _get_delivery_order, DeliveryStatus.delivery_in_progress)
-        self.mock_mover_runner.run.assert_called_once_with(['/foo/bar//to_outbox', '/foo', 'TestProj'])
+        self.mock_mover_runner.run.assert_called_once_with(['/foo/bar/to_outbox', '/foo', 'TestProj'])
 
     @gen_test
     def test_update_delivery_status(self):
@@ -90,7 +90,7 @@ class TestMoverDeliveryService(AsyncTestCase):
         result = yield self.mover_delivery_service.update_delivery_status(self.delivery_order.id)
         self.assertEqual(result.delivery_status, DeliveryStatus.delivery_successful)
 
-        self.mock_moverinfo_runner.run_and_wait.assert_called_once_with(['/foo/bar//moverinfo', '-i', 'TestCase_31-ngi2016001-1484739218 '])
+        self.mock_moverinfo_runner.run_and_wait.assert_called_once_with(['/foo/bar/moverinfo', '-i', 'TestCase_31-ngi2016001-1484739218 '])
 
     @gen_test
     def test_deliver_by_staging_id_raises_on_non_existent_stage_id(self):

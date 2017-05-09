@@ -1,3 +1,4 @@
+import os.path
 import logging
 import re
 from tornado import gen
@@ -40,7 +41,7 @@ class MoverDeliveryService(object):
         delivery_order = delivery_order_repo.get_delivery_order_by_id(delivery_order_id, session)
         try:
 
-            cmd = [path_to_mover+'/to_outbox',
+            cmd = [os.path.join(path_to_mover, 'to_outbox'),
                    delivery_order.delivery_source,
                    delivery_order.delivery_project]
 
@@ -117,7 +118,7 @@ class MoverDeliveryService(object):
     @gen.coroutine
     def _run_mover_info(self, mover_delivery_order_id):
 
-        cmd = [self.path_to_mover+'/moverinfo', '-i', mover_delivery_order_id]
+        cmd = [os.path.join(self.path_to_mover, 'moverinfo'), '-i', mover_delivery_order_id]
         execution_result = yield self.moverinfo_external_program_service.run_and_wait(cmd)
 
         if execution_result.status_code == 0:
