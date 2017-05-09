@@ -23,43 +23,45 @@ class TestMoverDeliveryService(AsyncTestCase):
 
         example_moverinfo_stdout = """Delivered: Jan 19 00:23:31 [1484781811UTC]"""
 
-        mock_mover_runner = create_autospec(ExternalProgramService)
+        self.mock_mover_runner = create_autospec(ExternalProgramService)
         mock_process = MagicMock()
         mock_execution = Execution(pid=random.randint(1, 1000), process_obj=mock_process)
-        mock_mover_runner.run.return_value = mock_execution
+        self.mock_mover_runner.run.return_value = mock_execution
 
         @coroutine
         def wait_as_coroutine(x):
             return ExecutionResult(stdout=example_mover_stdout, stderr="", status_code=0)
 
-        mock_mover_runner.wait_for_execution = wait_as_coroutine
+        self.mock_mover_runner.wait_for_execution = wait_as_coroutine
 
-        mock_moverinfo_runner = create_autospec(ExternalProgramService)
+        self.mock_moverinfo_runner = create_autospec(ExternalProgramService)
 
         @coroutine
         def mover_info_wait_as_coroutine(x):
             return ExecutionResult(stdout=example_moverinfo_stdout, stderr="", status_code=0)
 
-        mock_moverinfo_runner.run_and_wait = mover_info_wait_as_coroutine
+        self.mock_moverinfo_runner.run_and_wait = MagicMock(wraps=mover_info_wait_as_coroutine)
 
         self.mock_staging_service = MagicMock()
         self.mock_delivery_repo = MagicMock()
 
-        self.delivery_order = DeliveryOrder(id=1)
+        self.delivery_order = DeliveryOrder(id=1, delivery_source="/foo", delivery_project="TestProj")
 
         self.mock_delivery_repo.create_delivery_order.return_value = self.delivery_order
         self.mock_delivery_repo.get_delivery_order_by_id.return_value = self.delivery_order
 
         self.mock_session_factory = MagicMock()
+        self.mock_path_to_mover = "/foo/bar/"
         self.mover_delivery_service = MoverDeliveryService(external_program_service=None,
                                                            staging_service=self.mock_staging_service,
                                                            delivery_repo=self.mock_delivery_repo,
-                                                           session_factory=self.mock_session_factory)
+                                                           session_factory=self.mock_session_factory,
+                                                           path_to_mover=self.mock_path_to_mover)
 
         # Inject separate external runner instances for the tests, since they need to return
         # different information
-        self.mover_delivery_service.mover_external_program_service = mock_mover_runner
-        self.mover_delivery_service.moverinfo_external_program_service = mock_moverinfo_runner
+        self.mover_delivery_service.mover_external_program_service = self.mock_mover_runner
+        self.mover_delivery_service.moverinfo_external_program_service = self.mock_moverinfo_runner
 
         super(TestMoverDeliveryService, self).setUp()
 
@@ -78,6 +80,7 @@ class TestMoverDeliveryService(AsyncTestCase):
         def _get_delivery_order():
             return self.delivery_order.delivery_status
         assert_eventually_equals(self, 1, _get_delivery_order, DeliveryStatus.delivery_in_progress)
+        self.mock_mover_runner.run.assert_called_once_with(['/foo/bar//to_outbox', '/foo', 'TestProj'])
 
     @gen_test
     def test_update_delivery_status(self):
@@ -86,6 +89,8 @@ class TestMoverDeliveryService(AsyncTestCase):
         self.mock_delivery_repo.get_delivery_order_by_id.return_value = delivery_order
         result = yield self.mover_delivery_service.update_delivery_status(self.delivery_order.id)
         self.assertEqual(result.delivery_status, DeliveryStatus.delivery_successful)
+
+        self.mock_moverinfo_runner.run_and_wait.assert_called_once_with(['/foo/bar//moverinfo', '-i', 'TestCase_31-ngi2016001-1484739218 '])
 
     @gen_test
     def test_deliver_by_staging_id_raises_on_non_existent_stage_id(self):

@@ -1,4 +1,3 @@
-
 import logging
 import re
 from tornado import gen
@@ -11,13 +10,14 @@ log = logging.getLogger(__name__)
 
 class MoverDeliveryService(object):
 
-    def __init__(self, external_program_service, staging_service, delivery_repo, session_factory):
+    def __init__(self, external_program_service, staging_service, delivery_repo, session_factory, path_to_mover):
         self.external_program_service = external_program_service
         self.mover_external_program_service = self.external_program_service
         self.moverinfo_external_program_service = self.external_program_service
         self.staging_service = staging_service
         self.delivery_repo = delivery_repo
         self.session_factory = session_factory
+        self.path_to_mover = path_to_mover
 
     @staticmethod
     def _parse_mover_id_from_mover_output(mover_output):
@@ -31,7 +31,7 @@ class MoverDeliveryService(object):
 
     @staticmethod
     @gen.coroutine
-    def _run_mover(delivery_order_id, delivery_order_repo, external_program_service, session_factory):
+    def _run_mover(delivery_order_id, delivery_order_repo, external_program_service, session_factory, path_to_mover):
         session = session_factory()
 
         # This is a somewhat hacky work-around to the problem that objects created in one
@@ -40,7 +40,7 @@ class MoverDeliveryService(object):
         delivery_order = delivery_order_repo.get_delivery_order_by_id(delivery_order_id, session)
         try:
 
-            cmd = ['to_outbox',
+            cmd = [path_to_mover+'/to_outbox',
                    delivery_order.delivery_source,
                    delivery_order.delivery_project]
 
@@ -90,7 +90,8 @@ class MoverDeliveryService(object):
         args_for_run_mover = {'delivery_order_id': delivery_order.id,
                               'delivery_order_repo': self.delivery_repo,
                               'external_program_service': self.mover_external_program_service,
-                              'session_factory': self.session_factory}
+                              'session_factory': self.session_factory,
+                              'path_to_mover': self.path_to_mover}
 
         if skip_mover:
             session = self.session_factory()
@@ -116,7 +117,7 @@ class MoverDeliveryService(object):
     @gen.coroutine
     def _run_mover_info(self, mover_delivery_order_id):
 
-        cmd = ['moverinfo', '-i', mover_delivery_order_id]
+        cmd = [self.path_to_mover+'/moverinfo', '-i', mover_delivery_order_id]
         execution_result = yield self.moverinfo_external_program_service.run_and_wait(cmd)
 
         if execution_result.status_code == 0:
