@@ -123,10 +123,12 @@ def compose_application(config):
 
     delivery_repo = DatabaseBasedDeliveriesRepository(session_factory=session_factory)
 
+    path_to_mover = config['path_to_mover']
     delivery_service = MoverDeliveryService(external_program_service=external_program_service,
                                             staging_service=staging_service,
                                             delivery_repo=delivery_repo,
-                                            session_factory=session_factory)
+                                            session_factory=session_factory,
+                                            path_to_mover=path_to_mover)
 
     return dict(config=config,
                 runfolder_repo=runfolder_repo,
