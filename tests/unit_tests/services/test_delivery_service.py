@@ -18,8 +18,7 @@ class TestMoverDeliveryService(AsyncTestCase):
 
     def setUp(self):
 
-        example_mover_stdout = """id=TestCase_31-ngi2016001-1484739218 Found receiver delivery00001 with end date: 2017-03-11
-                                  TestCase_31 queued for delivery to delivery00001, id = TestCase_31-ngi2016001-1484739218"""
+        example_mover_stdout = """TestCase_31-ngi2016001-1484739218"""
 
         example_moverinfo_stdout = """Delivered: Jan 19 00:23:31 [1484781811UTC]"""
 
@@ -155,15 +154,13 @@ class TestMoverDeliveryService(AsyncTestCase):
         assert_eventually_equals(self, 1, _get_delivery_order, DeliveryStatus.delivery_skipped)
 
     def test__parse_mover_id_from_mover_output(self):
-        example_mover_output = """id=TestCase_31-ngi2016001-1484739218 Found receiver delivery00001 with end date: 2017-03-11
-                                  TestCase_31 queued for delivery to delivery00001, id = TestCase_31-ngi2016001-1484739218"""
+        example_mover_output = """TestCase_31-ngi2016001-1484739218"""
 
         actual = self.mover_delivery_service._parse_mover_id_from_mover_output(example_mover_output)
         self.assertEqual(actual, "TestCase_31-ngi2016001-1484739218")
 
     def test__parse_mover_id_from_mover_output_with_dash(self):
-        example_mover_output = """id=TestCase-31-ngi2016001-1484739218 Found receiver delivery00001 with end date: 2017-03-11
-                                  TestCase-31 queued for delivery to delivery00001, id = TestCase-31-ngi2016001-1484739218"""
+        example_mover_output = """TestCase-31-ngi2016001-1484739218"""
 
         actual = self.mover_delivery_service._parse_mover_id_from_mover_output(example_mover_output)
         self.assertEqual(actual, "TestCase-31-ngi2016001-1484739218")
