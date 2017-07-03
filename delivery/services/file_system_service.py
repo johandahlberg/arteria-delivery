@@ -74,8 +74,27 @@ class FileSystemService(object):
     @staticmethod
     def abspath(path):
         """
-        Shaods os.path.abspath
+        Shadows os.path.abspath
         :param path: to get abspath for
         :return: abs path to file/dir as per os.path.abspath
         """
         return os.path.abspath(path)
+
+    @staticmethod
+    def symlink(source, link_name):
+        """
+        Shadows os.symlink
+        :param source: of link
+        :param link_name: the name of the link to create
+        :return: None
+        """
+        return os.symlink(source, link_name)
+
+    @staticmethod
+    def mkdir(path):
+        """
+        Shadows os.mkdir
+        :param path: to dir to create
+        :return: None
+        """
+        os.mkdir(path)
