@@ -15,12 +15,13 @@ from delivery.handlers.utility_handlers import VersionHandler
 from delivery.handlers.runfolder_handlers import RunfolderHandler
 from delivery.handlers.project_handlers import ProjectHandler, ProjectsForRunfolderHandler
 from delivery.handlers.delivery_handlers import DeliverByStageIdHandler, DeliveryStatusHandler
-from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingHandler, StageGeneralDirectoryHandler
+from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingHandler,\
+    StageGeneralDirectoryHandler, StagingProjectRunfoldersHandler
 
 from delivery.repositories.runfolder_repository import FileSystemBasedRunfolderRepository
 from delivery.repositories.staging_repository import DatabaseBasedStagingRepository
 from delivery.repositories.deliveries_repository import DatabaseBasedDeliveriesRepository
-from delivery.repositories.project_repository import GeneralProjectRepository
+from delivery.repositories.project_repository import GeneralProjectRepository, RunfolderProjectRepository
 
 from delivery.services.delivery_service import MoverDeliveryService
 from delivery.services.external_program_service import ExternalProgramService
@@ -43,6 +44,8 @@ def routes(**kwargs):
         url(r"/api/1.0/runfolders/(.+)/projects", ProjectsForRunfolderHandler,
             name="projects_for_runfolder", kwargs=kwargs),
 
+        url(r"/api/1.0/stage/project/runfolders/(.+)", StagingProjectRunfoldersHandler,
+            name="stage_multiple_runfolders_one_project", kwargs=kwargs),
         url(r"/api/1.0/stage/runfolder/(.+)", StagingRunfolderHandler,
             name="stage_runfolder", kwargs=kwargs),
         url(r"/api/1.0/stage/project/(.+)", StageGeneralDirectoryHandler,
@@ -95,12 +98,17 @@ def compose_application(config):
     runfolder_dir = config["runfolder_directory"]
     _assert_is_dir(runfolder_dir)
 
+    project_links_directory = config["project_links_directory"]
+    _assert_is_dir(project_links_directory)
+
     runfolder_repo = FileSystemBasedRunfolderRepository(runfolder_dir)
 
     general_project_dir = config['general_project_directory']
     _assert_is_dir(general_project_dir)
 
     general_project_repo = GeneralProjectRepository(root_directory=general_project_dir)
+    runfolder_project_repo = RunfolderProjectRepository(runfolder_repository=runfolder_repo)
+
     external_program_service = ExternalProgramService()
 
     db_connection_string = config["db_connection_string"]
@@ -119,6 +127,8 @@ def compose_application(config):
                                      project_dir_repo=general_project_repo,
                                      staging_repo=staging_repo,
                                      staging_dir=staging_dir,
+                                     project_links_directory=project_links_directory,
+                                     runfolder_project_repo=runfolder_project_repo,
                                      session_factory=session_factory)
 
     delivery_repo = DatabaseBasedDeliveriesRepository(session_factory=session_factory)

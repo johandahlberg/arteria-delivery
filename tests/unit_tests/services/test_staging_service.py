@@ -1,6 +1,8 @@
 import mock
 import signal
 import random
+import os
+import tempfile
 
 from tornado.testing import AsyncTestCase
 from tornado.gen import coroutine
@@ -12,6 +14,7 @@ from delivery.services.external_program_service import ExternalProgramService
 from delivery.models.db_models import StagingOrder, StagingStatus
 from delivery.models.execution import Execution, ExecutionResult
 from delivery.models.project import GeneralProject
+from delivery.models.project import RunfolderProject
 from tests.test_utils import FAKE_RUNFOLDERS, assert_eventually_equals, MockIOLoop
 
 
@@ -80,12 +83,16 @@ class TestStagingService(AsyncTestCase):
 
         mock_db_session_factory = mock.MagicMock()
 
+        mock_runfolder_project_repo = mock.MagicMock()
+
         self.staging_service = StagingService(staging_dir="/tmp",
+                                              project_links_directory="/tmp",
                                               external_program_service=self.mock_external_runner_service,
                                               staging_repo=mock_staging_repo,
                                               runfolder_repo=self.mock_runfolder_repo,
                                               session_factory=mock_db_session_factory,
-                                              project_dir_repo=self.mock_general_project_repo)
+                                              project_dir_repo=self.mock_general_project_repo,
+                                              runfolder_project_repo=mock_runfolder_project_repo)
         self.staging_service.io_loop_factory = MockIOLoop
         super(TestStagingService, self).setUp()
 
@@ -227,3 +234,39 @@ class TestStagingService(AsyncTestCase):
         actual = self.staging_service.kill_process_of_staging_order(self.staging_order1.id)
         mock_os.kill.assert_not_called()
         self.assertFalse(actual)
+
+    def test__create_links_area_for_project_runfolders(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            self.staging_service.project_links_directory = tmpdirname
+
+            projects = [RunfolderProject(name="ABC_123",
+                                         path="/foo/160930_ST-E00216_0112_BH37CWALXX/Projects/ABC_123",
+                                         runfolder_path="/foo/160930_ST-E00216_0112_BH37CWALXX",
+                                         runfolder_name="160930_ST-E00216_0112_BH37CWALXX"),
+                        RunfolderProject(name="ABC_123",
+                                         path="/foo/160930_ST-E00216_0111_BH37CWALXX/Projects/ABC_123",
+                                         runfolder_path="/foo/160930_ST-E00216_0111_BH37CWALXX/",
+                                         runfolder_name="160930_ST-E00216_0111_BH37CWALXX")]
+
+            project_link_area = self.staging_service._create_links_area_for_project_runfolders("ABC_123", projects)
+
+            project_linking_area_base = os.path.join(self.staging_service.project_links_directory, "ABC_123")
+            self.assertEqual(project_link_area,
+                             project_linking_area_base)
+
+            self.assertTrue(
+                os.path.islink(
+                    os.path.join(
+                        project_linking_area_base,
+                        "160930_ST-E00216_0112_BH37CWALXX")))
+
+            self.assertTrue(
+                os.path.islink(
+                    os.path.join(
+                        project_linking_area_base,
+                        "160930_ST-E00216_0111_BH37CWALXX")))
+
+    def test_stage_runfolders_for_project(self):
+        self.assertTrue(False)
+        

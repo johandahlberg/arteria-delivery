@@ -2,7 +2,7 @@
 import unittest
 from mock import MagicMock
 
-from delivery.models.project import GeneralProject
+from delivery.models.project import GeneralProject, RunfolderProject
 from delivery.repositories.project_repository import RunfolderProjectRepository, GeneralProjectRepository
 from delivery.services.file_system_service import FileSystemService
 
@@ -18,6 +18,22 @@ class TestRunfolderProjectRepository(unittest.TestCase):
     def test_get_projects(self):
         actual_projects = list(self.repo.get_projects())
         self.assertTrue(len(actual_projects) == 4)
+
+    def test_get_project(self):
+        project_name = "ABC_123"
+        expected_projects = [RunfolderProject(name="ABC_123",
+                                              runfolder_path="/foo/160930_ST-E00216_0111_BH37CWALXX",
+                                              path="/foo/160930_ST-E00216_0111_BH37CWALXX/Projects/ABC_123",
+                                              runfolder_name="160930_ST-E00216_0111_BH37CWALXX"),
+                             RunfolderProject(name="ABC_123",
+                                              runfolder_path="/foo/160930_ST-E00216_0112_BH37CWALXX",
+                                              path="/foo/160930_ST-E00216_0112_BH37CWALXX/Projects/ABC_123",
+                                              runfolder_name="160930_ST-E00216_0112_BH37CWALXX")]
+
+        actual_projects = list(self.repo.get_project(project_name))
+
+        self.assertEqual(len(actual_projects), 2)
+        self.assertEqual(actual_projects, expected_projects)
 
 
 class TestGeneralProjectRepository(unittest.TestCase):

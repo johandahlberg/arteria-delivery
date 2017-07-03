@@ -10,6 +10,8 @@ from delivery.models.db_models import StagingStatus
 from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException,\
     ProjectNotFoundException, TooManyProjectsFound
 
+from delivery.services.file_system_service import FileSystemService
+
 log = logging.getLogger(__name__)
 
 
@@ -39,6 +41,8 @@ class StagingService(object):
                  staging_repo,
                  runfolder_repo,
                  project_dir_repo,
+                 project_links_directory,
+                 runfolder_project_repo,
                  session_factory):
         """
         Instantiate a new StagingService
@@ -47,6 +51,9 @@ class StagingService(object):
         :param staging_repo: a instance of DatabaseBasedStagingRepository
         :param runfolder_repo: a instance of FileSystemBasedRunfolderRepository
         :param project_dir_repo: a instance of GeneralProjectRepository
+        :param project_links_directory: a path to a directory where links will be created temporarily
+                                        before they are rsynced into staging (for batched deliveries etc)
+        :param runfolder_project_repo: A runfolder project repo
         :param session_factory: a factory method which can produce new sqlalchemy Session instances
         """
         self.staging_dir = staging_dir
@@ -54,6 +61,8 @@ class StagingService(object):
         self.staging_repo = staging_repo
         self.runfolder_repo = runfolder_repo
         self.project_dir_repo = project_dir_repo
+        self.project_links_directory = project_links_directory
+        self.runfolder_project_repo = runfolder_project_repo
         self.session_factory = session_factory
 
     @staticmethod
@@ -193,6 +202,61 @@ class StagingService(object):
                 project_and_stage_order_ids[project.name] = staging_order.id
 
         return project_and_stage_order_ids
+
+    def _create_links_area_for_project_runfolders(self, project_name, projects):
+        """
+        Creates a directory in which it creates links to all runfolders for the projects
+        given. This is useful so that we can then rsync that directory to
+        the staging area.
+        :param project_name: name of the project
+        :param projects: runfolders with the specified project on them
+        :return: the path to the dir created
+        """
+
+        project_dir = os.path.join(self.project_links_directory, project_name)
+        try:
+            FileSystemService.mkdir(project_dir)
+        except FileExistsError as e:
+            log.warning("Project dir: {} already exists".format(project_dir))
+
+        for project in projects:
+            try:
+                link_name = os.path.join(project_dir, project.runfolder_name)
+                FileSystemService.symlink(project.path, link_name)
+            except FileExistsError:
+                log.warning("Project link: {} already exists".format(project_dir))
+                continue
+
+        return FileSystemService.abspath(project_dir)
+
+    def stage_runfolders_for_project(self, project_id, delivery_type):
+        projects = list(self.runfolder_project_repo.get_project(project_name=project_id))
+
+        if len(projects) < 1:
+            raise ProjectNotFoundException("Could not find any Project folders"
+                                           " for project name: {}".format(project_id))
+
+        # TODO
+        # If delivery type == "clean"
+        #   No runfolder project can have been delivered before
+        # If delivery type == "batch"
+        #   Only delivery none delivered runfolders
+        # If delivery type == force
+        #   Re-deliver all independent of status
+
+        # Link all <runfolder name>/Projects/<proj name>/<runfolder name> into same directory
+        # TODO Continue here...
+        links_directory = self._create_links_area_for_project_runfolders(project_name=project_id,
+                                                                         projects=projects)
+
+        # Stage
+        staging_order = self.staging_repo.create_staging_order(source=links_directory,
+                                                               status=StagingStatus.pending,
+                                                               staging_target_dir=self.staging_dir)
+        self.stage_order(staging_order)
+
+        # TODO Maybe, once stage is complete remove the dir..
+        return {project_id: staging_order.id}
 
     def stage_directory(self, dir_name):
         """
