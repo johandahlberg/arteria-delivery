@@ -154,6 +154,11 @@ class TestIntegration(AsyncHTTPTestCase):
                                      f=partial(self._get_delivery_status, delivery_link),
                                      expected=DeliveryStatus.delivery_skipped.name)
 
+    def test_can_stage_and_deliver_clean_flowcells(self):
+        self.assertTrue(False)
 
+    def test_can_stage_and_deliver_batched_flowcells(self):
+        self.assertTrue(False)
 
-
+    def test_can_stage_and_deliver_force_flowcells(self):
+        self.assertTrue(False)
