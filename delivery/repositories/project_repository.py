@@ -28,6 +28,10 @@ class RunfolderProjectRepository(object):
                 for project in runfolder.projects:
                     yield project
 
+    def get_project(self, project_name):
+        for project in self.get_projects():
+            if project.name == project_name:
+                yield project
 
 class GeneralProjectRepository(object):
     """
