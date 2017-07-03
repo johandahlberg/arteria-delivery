@@ -81,7 +81,6 @@ class DeliveryStatus(base_enum.Enum):
 class DeliveryOrder(SQLAlchemyBase):
     """
     Models a delivery order
-    TODO This is still WIP docs should be updated once we have settled on a model...
     """
 
     __tablename__ = 'delivery_orders'
@@ -100,8 +99,6 @@ class DeliveryOrder(SQLAlchemyBase):
     # a delivery status
     mover_delivery_id = Column(String)
 
-    # TODO Depending on how Mover will work we might not
-    # store the delivery status here, but rather poll Mover about it...
     delivery_status = Column(Enum(DeliveryStatus))
     # TODO This should really be enforcing a foreign key constraint
     # against the staging order table, but this does not seem to
