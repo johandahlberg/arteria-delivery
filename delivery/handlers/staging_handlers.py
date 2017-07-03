@@ -31,6 +31,46 @@ class BaseStagingHandler(BaseRestHandler):
         return link_results, id_results
 
 
+class StagingProjectRunfoldersHandler(BaseStagingHandler):
+    """
+    Handler class for handling how to start staging of runfolders belonging to a project. Polling for status,
+    canceling, etc can then be handled by the more general `StagingHandler`
+    """
+
+    def initialize(self, staging_service, **kwargs):
+        self.staging_service = staging_service
+
+    @coroutine
+    def post(self, project_id):
+        """
+        TODO Write docs here...
+        """
+
+        log.debug("Trying to stage runfolders for project: {}".format(project_id))
+
+        try:
+            request_data = self.body_as_object()
+        except ValueError:
+            request_data = {}
+
+        try:
+            delivery_type = request_data.get("delivery_type", None)
+
+            if not delivery_type:
+                raise ValueError('Delivery type: {} was not supported. Please give: "clean"/"batch"/"force".')
+
+            log.debug("Will attempt to stage runfolders for project {} with type {}".format(project_id, delivery_type))
+
+            project_and_stage_id = self.staging_service.stage_runfolders_for_project(project_id, delivery_type)
+            links, staging_ids_ids = self._construct_response_from_project_and_status(project_and_stage_id)
+            self.set_status(ACCEPTED)
+            # TODO Check that this is what Arteria expects...
+            self.write_json({'staging_order_links': links,
+                             'staging_order_ids': staging_ids_ids})
+        except ProjectNotFoundException as e:
+            self.set_status(NOT_FOUND, reason=e.msg)
+
+
 class StagingRunfolderHandler(BaseStagingHandler):
     """
     Handler class for handling how to start staging of a runfolder. Polling for status, canceling, etc can then be

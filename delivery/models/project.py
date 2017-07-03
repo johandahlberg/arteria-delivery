@@ -25,16 +25,18 @@ class RunfolderProject(BaseProject):
     to the idea of projects as subdirectories in a demultiplexed Illumina runfolder.
     """
 
-    def __init__(self, name, path, runfolder_path=None):
+    def __init__(self, name, path, runfolder_path, runfolder_name):
         """
         Instantiate a new `RunfolderProject` object
         :param name: of the project
         :param path: path to the project
         :param runfolder_path: path the runfolder in which this project is stored.
+        :param runfolder_name: name of the runfolder in which this project is stored
         """
         self.name = name
         self.path = os.path.abspath(path)
         self.runfolder_path = runfolder_path
+        self.runfolder_name = runfolder_name
 
 
 class GeneralProject(BaseProject):
