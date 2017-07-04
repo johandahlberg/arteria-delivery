@@ -6,7 +6,7 @@ from tornado.testing import AsyncTestCase, gen_test
 from tornado.gen import coroutine
 
 from delivery.services.external_program_service import ExternalProgramService
-from delivery.services.delivery_service import MoverDeliveryService
+from delivery.services.mover_service import MoverDeliveryService
 from delivery.models.db_models import DeliveryOrder, StagingOrder, StagingStatus, DeliveryStatus
 from delivery.models.execution import ExecutionResult, Execution
 from delivery.exceptions import InvalidStatusException, CannotParseMoverOutputException

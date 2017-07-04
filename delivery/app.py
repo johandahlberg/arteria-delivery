@@ -23,7 +23,7 @@ from delivery.repositories.staging_repository import DatabaseBasedStagingReposit
 from delivery.repositories.deliveries_repository import DatabaseBasedDeliveriesRepository
 from delivery.repositories.project_repository import GeneralProjectRepository, RunfolderProjectRepository
 
-from delivery.services.delivery_service import MoverDeliveryService
+from delivery.services.mover_service import MoverDeliveryService
 from delivery.services.external_program_service import ExternalProgramService
 from delivery.services.staging_service import StagingService
 from delivery.services.file_system_service import FileSystemService
