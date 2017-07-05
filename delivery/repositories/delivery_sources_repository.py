@@ -32,6 +32,15 @@ class DatabaseBasedDeliverySourcesRepository(object):
         self.session.add(source)
         self.session.commit()
 
+    def get_source(self, project_name, source_name):
+        return self.session.query(DeliverySource).\
+            filter(DeliverySource.project_name == project_name).\
+            filter(DeliverySource.source_name == source_name).scalar()
+
+    def update_path_of_source(self, source, new_path):
+        source.path = new_path
+        self.session.commit()
+
     def source_exists(self, source):
         does_exist = self.session.query(exists().
                                         where(DeliverySource.project_name == source.project_name).

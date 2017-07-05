@@ -2,7 +2,7 @@
 
 import json
 from functools import partial
-
+import tempfile
 
 from tornado.testing import *
 from tornado.web import Application
@@ -121,38 +121,61 @@ class TestIntegration(AsyncHTTPTestCase):
         # Note that this is a test which skips mover (since to_outbox is not expected to be installed on the system
         # where this runs)
 
-        url = "/".join([self.API_BASE, "stage", "project", "my_test_project"])
-        response = self.fetch(url, method='POST', body='')
-        self.assertEqual(response.code, 202)
+        with tempfile.TemporaryDirectory(dir='./tests/resources/projects') as tmp_dir:
 
-        response_json = json.loads(response.body)
+            dir_name = os.path.basename(tmp_dir)
+            url = "/".join([self.API_BASE, "stage", "project", dir_name])
+            response = self.fetch(url, method='POST', body='')
+            self.assertEqual(response.code, 202)
 
-        staging_status_links = response_json.get("staging_order_links")
+            response_json = json.loads(response.body)
 
-        for project, link in staging_status_links.items():
-            self.assertEqual(project, "my_test_project")
+            staging_status_links = response_json.get("staging_order_links")
 
-            assert_eventually_equals(self,
-                                     timeout=5,
-                                     delay=1,
-                                     f=partial(self._get_delivery_status, link),
-                                     expected=StagingStatus.staging_successful.name)
+            for project, link in staging_status_links.items():
+                self.assertEqual(project, dir_name)
 
-        staging_order_project_and_id = response_json.get("staging_order_ids")
+                assert_eventually_equals(self,
+                                         timeout=5,
+                                         delay=1,
+                                         f=partial(self._get_delivery_status, link),
+                                         expected=StagingStatus.staging_successful.name)
 
-        for project, staging_id in staging_order_project_and_id.items():
-            delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
-            delivery_body = {'delivery_project_id': 'fakedeliveryid2016',
-                             'skip_mover': True}
-            delivery_resp = self.fetch(delivery_url, method='POST', body=json.dumps(delivery_body))
-            delivery_resp_as_json = json.loads(delivery_resp.body)
-            delivery_link = delivery_resp_as_json['delivery_order_link']
+            staging_order_project_and_id = response_json.get("staging_order_ids")
 
-            assert_eventually_equals(self,
-                                     timeout=5,
-                                     delay=1,
-                                     f=partial(self._get_delivery_status, delivery_link),
-                                     expected=DeliveryStatus.delivery_skipped.name)
+            for project, staging_id in staging_order_project_and_id.items():
+                delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
+                delivery_body = {'delivery_project_id': 'fakedeliveryid2016',
+                                 'skip_mover': True}
+                delivery_resp = self.fetch(delivery_url, method='POST', body=json.dumps(delivery_body))
+                delivery_resp_as_json = json.loads(delivery_resp.body)
+                delivery_link = delivery_resp_as_json['delivery_order_link']
+
+                assert_eventually_equals(self,
+                                         timeout=5,
+                                         delay=1,
+                                         f=partial(self._get_delivery_status, delivery_link),
+                                         expected=DeliveryStatus.delivery_skipped.name)
+
+    def test_cannot_stage_the_same_project_twice(self):
+        # Note that this is a test which skips mover (since to_outbox is not expected to be installed on the system
+        # where this runs)
+
+        with tempfile.TemporaryDirectory(dir='./tests/resources/projects') as tmp_dir:
+
+            # Stage once should work
+            dir_name = os.path.basename(tmp_dir)
+            url = "/".join([self.API_BASE, "stage", "project", dir_name])
+            response = self.fetch(url, method='POST', body='')
+            self.assertEqual(response.code, 202)
+
+            # The second time should not
+            response = self.fetch(url, method='POST', body='')
+            self.assertEqual(response.code, 403)
+
+            # Unless you force the delivery
+            response = self.fetch(url, method='POST', body=json.dumps({"force_delivery": True}))
+            self.assertEqual(response.code, 202)
 
 #    def test_can_stage_and_deliver_clean_flowcells(self):
 #        self.assertTrue(False)

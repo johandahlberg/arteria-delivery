@@ -41,8 +41,10 @@ class DeliveryService(object):
         # override is activated
         if source_exists and not force_delivery:
             raise ProjectAlreadyDeliveredException("Project {} has already been delivered.".format(project_name))
-
-        self.delivery_sources_repo.add_source(source)
+        elif source_exists and force_delivery:
+            self.delivery_sources_repo.update_path_of_source(source, new_path=project.path)
+        else:
+            self.delivery_sources_repo.add_source(source)
 
         # Start staging
         stage_order = self.staging_service.create_new_stage_order(path=source.path)

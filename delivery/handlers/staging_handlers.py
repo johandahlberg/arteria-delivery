@@ -7,7 +7,7 @@ from tornado.web import asynchronous
 from arteria.web.handlers import BaseRestHandler
 
 from delivery.handlers import *
-from delivery.exceptions import ProjectNotFoundException
+from delivery.exceptions import ProjectNotFoundException,ProjectAlreadyDeliveredException
 
 
 log = logging.getLogger(__name__)
@@ -171,15 +171,21 @@ class StageGeneralDirectoryHandler(BaseStagingHandler):
             request_data = {}
 
         project_alias = request_data.get("project_alias", None)
+        force_delivery = request_data.get("force_delivery", False)
 
-        stage_order_and_id = self.delivery_service.deliver_arbitrary_directory_project(project_name=directory_name,
-                                                                                       project_alias=project_alias)
+        try:
+            stage_order_and_id = self.delivery_service.\
+                deliver_arbitrary_directory_project(project_name=directory_name,
+                                                    project_alias=project_alias,
+                                                    force_delivery=force_delivery)
 
-        link_results, id_results = self._construct_response_from_project_and_status(stage_order_and_id)
+            link_results, id_results = self._construct_response_from_project_and_status(stage_order_and_id)
 
-        self.set_status(ACCEPTED)
-        self.write_json({'staging_order_links': link_results,
-                         'staging_order_ids': id_results})
+            self.set_status(ACCEPTED)
+            self.write_json({'staging_order_links': link_results,
+                             'staging_order_ids': id_results})
+        except ProjectAlreadyDeliveredException as e:
+            self.set_status(FORBIDDEN, reason=str(e))
 
 class StagingHandler(BaseRestHandler):
 
