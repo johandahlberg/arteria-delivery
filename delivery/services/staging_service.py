@@ -282,6 +282,12 @@ class StagingService(object):
         self.stage_order(staging_order)
         return {exact_project.name: staging_order.id}
 
+    def create_new_stage_order(self, path):
+        staging_order = self.staging_repo.create_staging_order(source=path,
+                                                               status=StagingStatus.pending,
+                                                               staging_target_dir=self.staging_dir)
+        return staging_order
+
     def get_stage_order_by_id(self, stage_order_id):
         """
         Get stage order by id

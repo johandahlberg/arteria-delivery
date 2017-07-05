@@ -8,10 +8,30 @@ from sqlalchemy.ext.declarative import declarative_base
 """
 Use this as the base for all database based models. This is used by alembic to know what the tables
 should look like in the database, so defining new base classes elsewhere will mean that they will not
-be updated properly in the actuall database.
+be updated properly in the actual database.
 """
 SQLAlchemyBase = declarative_base()
 
+
+class DeliverySource(SQLAlchemyBase):
+
+    __tablename__ = 'delivery_sources'
+
+    # Project name associated with the source
+    project_name = Column(String, nullable=False, primary_key=True)
+
+    # The name of the source folder, for a runfolder it will be the
+    # runfolder name, for arbitrary project it will be the name of the
+    # delivery
+    source_name = Column(String, nullable=False, primary_key=True)
+
+    # The path to the source on disk at the time of creation
+    path = Column(String, nullable=False)
+
+    def __repr__(self):
+        return "Delivery source: {project_name: %s, source: %s, path: %s}" % (self.project_name,
+                                                                              self.source_name,
+                                                                              self.path)
 
 class StagingStatus(base_enum.Enum):
     """
