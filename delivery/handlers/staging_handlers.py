@@ -189,8 +189,8 @@ class StageGeneralDirectoryHandler(BaseStagingHandler):
 
 class StagingHandler(BaseRestHandler):
 
-    def initialize(self, staging_service, **kwargs):
-        self.staging_service = staging_service
+    def initialize(self, delivery_service, **kwargs):
+        self.delivery_service = delivery_service
 
     def get(self, stage_id):
         """
@@ -201,7 +201,7 @@ class StagingHandler(BaseRestHandler):
            "status": "staging_successful"
         }
         """
-        stage_order = self.staging_service.get_stage_order_by_id(stage_id)
+        stage_order = self.delivery_service.check_staging_status(stage_id)
         if stage_order:
             self.write_json({'status': stage_order.status.name, 'size': stage_order.size})
         else:
@@ -212,7 +212,7 @@ class StagingHandler(BaseRestHandler):
         Kill a stage order with the give id. Will return status 204 if the staging process was successfully cancelled,
         otherwise it will return status 500.
         """
-        was_killed = self.staging_service.kill_process_of_stage_order(stage_id)
+        was_killed = self.delivery_service.kill_process_of_stage_order(stage_id)
         if was_killed:
             self.set_status(NO_CONTENT)
         else:

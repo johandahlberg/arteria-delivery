@@ -52,6 +52,9 @@ class DeliveryService(object):
 
         return {source.project_name: stage_order.id}
 
-    def check_staging_status(self, staging_uid):
-        pass
-
+    def check_staging_status(self, staging_id):
+        stage_order = self.staging_service.get_stage_order_by_id(staging_id)
+        return stage_order
+    def kill_process_of_stage_order(self, staging_id):
+        was_killed = self.staging_service.kill_process_of_stage_order(staging_id)
+        return was_killed
