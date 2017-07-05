@@ -22,11 +22,14 @@ from delivery.repositories.runfolder_repository import FileSystemBasedRunfolderR
 from delivery.repositories.staging_repository import DatabaseBasedStagingRepository
 from delivery.repositories.deliveries_repository import DatabaseBasedDeliveriesRepository
 from delivery.repositories.project_repository import GeneralProjectRepository, RunfolderProjectRepository
+from delivery.repositories.delivery_sources_repository import DatabaseBasedDeliverySourcesRepository
+
 
 from delivery.services.mover_service import MoverDeliveryService
 from delivery.services.external_program_service import ExternalProgramService
 from delivery.services.staging_service import StagingService
 from delivery.services.file_system_service import FileSystemService
+from delivery.services.delivery_service import DeliveryService
 
 
 def routes(**kwargs):
@@ -134,16 +137,24 @@ def compose_application(config):
     delivery_repo = DatabaseBasedDeliveriesRepository(session_factory=session_factory)
 
     path_to_mover = config['path_to_mover']
-    delivery_service = MoverDeliveryService(external_program_service=external_program_service,
+    mover_delivery_service = MoverDeliveryService(external_program_service=external_program_service,
                                             staging_service=staging_service,
                                             delivery_repo=delivery_repo,
                                             session_factory=session_factory,
                                             path_to_mover=path_to_mover)
 
+    delivery_sources_repo = DatabaseBasedDeliverySourcesRepository(session_factory=session_factory)
+
+    delivery_service = DeliveryService(mover_service=mover_delivery_service,
+                                       staging_service=staging_service,
+                                       delivery_sources_repo=delivery_sources_repo,
+                                       general_project_repo=general_project_repo)
+
     return dict(config=config,
                 runfolder_repo=runfolder_repo,
                 external_program_service=external_program_service,
                 staging_service=staging_service,
+                mover_delivery_service=mover_delivery_service,
                 delivery_service=delivery_service)
 
 

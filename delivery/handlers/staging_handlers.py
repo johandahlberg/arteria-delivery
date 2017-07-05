@@ -135,8 +135,8 @@ class StageGeneralDirectoryHandler(BaseStagingHandler):
     `general_project_directory` in the application config.
     """
 
-    def initialize(self, staging_service, **kwargs):
-        self.staging_service = staging_service
+    def initialize(self, delivery_service, **kwargs):
+        self.delivery_service = delivery_service
 
     def post(self, directory_name):
         """
@@ -153,6 +153,10 @@ class StageGeneralDirectoryHandler(BaseStagingHandler):
                 'content-type': "application/json",
             }
 
+            # Optionally send a project alias (when the name of the dir is something else
+            than the project name)
+            data = {"project_alias":}
+
             response = requests.request("POST", url, data='', headers=headers)
 
             print(response.text)
@@ -161,7 +165,15 @@ class StageGeneralDirectoryHandler(BaseStagingHandler):
             {"staging_order_links": {"my_test_project": "http://localhost:8080/api/1.0/stage/591"}}
 
         """
-        stage_order_and_id = self.staging_service.stage_directory(directory_name)
+        try:
+            request_data = self.body_as_object()
+        except ValueError:
+            request_data = {}
+
+        project_alias = request_data.get("project_alias", None)
+
+        stage_order_and_id = self.delivery_service.deliver_arbitrary_directory_project(project_name=directory_name,
+                                                                                       project_alias=project_alias)
 
         link_results, id_results = self._construct_response_from_project_and_status(stage_order_and_id)
 
