@@ -150,50 +150,51 @@ class TestStagingService(AsyncTestCase):
 
             res = yield self.staging_service.stage_order(stage_order=staging_order_in_progress)
 
-    # - Be able to stage a existing runfolder
-    def test_stage_runfolder(self):
-        runfolder1 = FAKE_RUNFOLDERS[0]
+# TODO Move these tests to run on new delivery service
+#    # - Be able to stage a existing runfolder
+#    def test_stage_runfolder(self):
+#        runfolder1 = FAKE_RUNFOLDERS[0]
+#
+#        self.mock_runfolder_repo.get_runfolder.return_value = runfolder1
+#        mock_staging_repo = self.MockStagingRepo()
+#
+#        self.staging_service.staging_repo = mock_staging_repo
+#
+#        result = self.staging_service.stage_runfolder(
+#            runfolder_id=runfolder1.name, projects_to_stage=[])
+#
+#        expected = {'DEF_456': 2, 'ABC_123': 1}
+#        self.assertDictEqual(result, expected)
+#
+#        # - Reject stating a runfolder if the given projects is not available
+#        with self.assertRaises(ProjectNotFoundException):
+#            self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=['foo'])
 
-        self.mock_runfolder_repo.get_runfolder.return_value = runfolder1
-        mock_staging_repo = self.MockStagingRepo()
+#    # - Reject staging a runfolder which does not exist runfolder
+#    def test_stage_runfolder_does_not_exist(self):
+#        with self.assertRaises(RunfolderNotFoundException):
+#
+#            self.mock_runfolder_repo.get_runfolder.return_value = None
+#            self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=[])
 
-        self.staging_service.staging_repo = mock_staging_repo
-
-        result = self.staging_service.stage_runfolder(
-            runfolder_id=runfolder1.name, projects_to_stage=[])
-
-        expected = {'DEF_456': 2, 'ABC_123': 1}
-        self.assertDictEqual(result, expected)
-
-        # - Reject stating a runfolder if the given projects is not available
-        with self.assertRaises(ProjectNotFoundException):
-            self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=['foo'])
-
-    # - Reject staging a runfolder which does not exist runfolder
-    def test_stage_runfolder_does_not_exist(self):
-        with self.assertRaises(RunfolderNotFoundException):
-
-            self.mock_runfolder_repo.get_runfolder.return_value = None
-            self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=[])
-
-    # - Stage a 'general' directory if it exists
-    def test_stage_directory(self):
-        mock_staging_repo = self.MockStagingRepo()
-
-        self.staging_service.staging_repo = mock_staging_repo
-
-        self.mock_general_project_repo.get_projects.return_value = [GeneralProject(name='foo', path='/bar/foo'),
-                                                                    GeneralProject(name='bar', path='/bar/foo')]
-
-        expected = {'foo': 1}
-        result = self.staging_service.stage_directory('foo')
-        self.assertDictEqual(expected, result)
-
-    # - Reject staging a directory that does not exist...
-    def test_stage_directory_does_not_exist(self):
-        with self.assertRaises(ProjectNotFoundException):
-            self.mock_general_project_repo.get_projects.return_value = []
-            self.staging_service.stage_directory('foo')
+#    # - Stage a 'general' directory if it exists
+#    def test_stage_directory(self):
+#        mock_staging_repo = self.MockStagingRepo()
+#
+#        self.staging_service.staging_repo = mock_staging_repo
+#
+#        self.mock_general_project_repo.get_projects.return_value = [GeneralProject(name='foo', path='/bar/foo'),
+#                                                                    GeneralProject(name='bar', path='/bar/foo')]
+#
+#        expected = {'foo': 1}
+#        result = self.staging_service.stage_directory('foo')
+#        self.assertDictEqual(expected, result)
+#
+#    # - Reject staging a directory that does not exist...
+#    def test_stage_directory_does_not_exist(self):
+#        with self.assertRaises(ProjectNotFoundException):
+#            self.mock_general_project_repo.get_projects.return_value = []
+#            self.staging_service.stage_directory('foo')
 
     # - Be able to get the status of a stage order
     def test_get_status_or_stage_order(self):

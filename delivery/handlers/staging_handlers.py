@@ -77,8 +77,8 @@ class StagingRunfolderHandler(BaseStagingHandler):
     handled by the more general `StagingHandler`
     """
 
-    def initialize(self, staging_service, **kwargs):
-        self.staging_service = staging_service
+    def initialize(self, delivery_service, **kwargs):
+        self.delivery_service = delivery_service
 
     @coroutine
     def post(self, runfolder_id):
@@ -115,10 +115,13 @@ class StagingRunfolderHandler(BaseStagingHandler):
 
         try:
             projects_to_stage = request_data.get("projects", [])
+            force_delivery = request_data.get("force_delivery", False)
 
             log.debug("Got the following projects to stage: {}".format(projects_to_stage))
 
-            staging_order_projects_and_ids = self.staging_service.stage_runfolder(runfolder_id, projects_to_stage)
+            staging_order_projects_and_ids = self.delivery_service.deliver_single_runfolder(runfolder_id,
+                                                                                            projects_to_stage,
+                                                                                            force_delivery)
 
             link_results, id_results = self._construct_response_from_project_and_status(staging_order_projects_and_ids)
 
@@ -154,8 +157,8 @@ class StageGeneralDirectoryHandler(BaseStagingHandler):
             }
 
             # Optionally send a project alias (when the name of the dir is something else
-            than the project name)
-            data = {"project_alias":}
+            than the project name) or force the delivery
+            data = {"project_alias": "my_test_project_batch1", "force_delivery": "True"}
 
             response = requests.request("POST", url, data='', headers=headers)
 

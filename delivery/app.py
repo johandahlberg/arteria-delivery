@@ -148,7 +148,8 @@ def compose_application(config):
     delivery_service = DeliveryService(mover_service=mover_delivery_service,
                                        staging_service=staging_service,
                                        delivery_sources_repo=delivery_sources_repo,
-                                       general_project_repo=general_project_repo)
+                                       general_project_repo=general_project_repo,
+                                       runfolder_repo=runfolder_repo)
 
     return dict(config=config,
                 runfolder_repo=runfolder_repo,
