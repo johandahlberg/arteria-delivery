@@ -92,3 +92,18 @@ class FileSystemBasedRunfolderRepository(object):
             return matching_name[0]
         else:
             return None
+
+    def get_projects(self):
+        """
+        Pick up all projects
+        :return: a generator of project instances
+        """
+        for runfolder in self.get_runfolders():
+            if runfolder.projects:
+                for project in runfolder.projects:
+                    yield project
+
+    def get_project(self, project_name):
+        for project in self.get_projects():
+            if project.name == project_name:
+                yield project

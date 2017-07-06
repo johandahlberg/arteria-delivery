@@ -21,7 +21,7 @@ from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingH
 from delivery.repositories.runfolder_repository import FileSystemBasedRunfolderRepository
 from delivery.repositories.staging_repository import DatabaseBasedStagingRepository
 from delivery.repositories.deliveries_repository import DatabaseBasedDeliveriesRepository
-from delivery.repositories.project_repository import GeneralProjectRepository, RunfolderProjectRepository
+from delivery.repositories.project_repository import GeneralProjectRepository
 from delivery.repositories.delivery_sources_repository import DatabaseBasedDeliverySourcesRepository
 
 
@@ -30,6 +30,7 @@ from delivery.services.external_program_service import ExternalProgramService
 from delivery.services.staging_service import StagingService
 from delivery.services.file_system_service import FileSystemService
 from delivery.services.delivery_service import DeliveryService
+from delivery.services.runfolder_service import RunfolderService
 
 
 def routes(**kwargs):
@@ -110,8 +111,6 @@ def compose_application(config):
     _assert_is_dir(general_project_dir)
 
     general_project_repo = GeneralProjectRepository(root_directory=general_project_dir)
-    runfolder_project_repo = RunfolderProjectRepository(runfolder_repository=runfolder_repo)
-
     external_program_service = ExternalProgramService()
 
     db_connection_string = config["db_connection_string"]
@@ -131,25 +130,26 @@ def compose_application(config):
                                      staging_repo=staging_repo,
                                      staging_dir=staging_dir,
                                      project_links_directory=project_links_directory,
-                                     runfolder_project_repo=runfolder_project_repo,
                                      session_factory=session_factory)
 
     delivery_repo = DatabaseBasedDeliveriesRepository(session_factory=session_factory)
 
     path_to_mover = config['path_to_mover']
     mover_delivery_service = MoverDeliveryService(external_program_service=external_program_service,
-                                            staging_service=staging_service,
-                                            delivery_repo=delivery_repo,
-                                            session_factory=session_factory,
-                                            path_to_mover=path_to_mover)
+                                                  staging_service=staging_service,
+                                                  delivery_repo=delivery_repo,
+                                                  session_factory=session_factory,
+                                                  path_to_mover=path_to_mover)
 
     delivery_sources_repo = DatabaseBasedDeliverySourcesRepository(session_factory=session_factory)
+    runfolder_service = RunfolderService(runfolder_repo)
 
     delivery_service = DeliveryService(mover_service=mover_delivery_service,
                                        staging_service=staging_service,
                                        delivery_sources_repo=delivery_sources_repo,
                                        general_project_repo=general_project_repo,
-                                       runfolder_repo=runfolder_repo)
+                                       runfolder_service=runfolder_service,
+                                       project_links_directory=project_links_directory)
 
     return dict(config=config,
                 runfolder_repo=runfolder_repo,

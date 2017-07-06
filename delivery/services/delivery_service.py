@@ -2,50 +2,12 @@
 import os
 import logging
 
+from delivery.services.file_system_service import FileSystemService
 from delivery.exceptions import ProjectAlreadyDeliveredException, RunfolderNotFoundException, ProjectNotFoundException
 
 from delivery.models.db_models import StagingStatus
 
 log = logging.getLogger(__name__)
-
-class RunfolderService(object):
-    # TODO Break out into separate file
-
-    def __init__(self, runfolder_repo):
-        self.runfolder_repo = runfolder_repo
-
-    def find_runfolder(self, runfolder_id):
-        runfolder = self.runfolder_repo.get_runfolder(runfolder_id)
-
-        if not runfolder:
-            raise RunfolderNotFoundException(
-                "Couldn't find runfolder matching: {}".format(runfolder_id))
-        else:
-            return runfolder
-
-    def _validate_project_lists(self, projects_on_runfolder, projects_to_stage):
-        projects_to_stage_set = set(projects_to_stage)
-        projects_on_runfolder_set = set(projects_on_runfolder)
-        return projects_to_stage_set.issubset(projects_on_runfolder_set)
-
-    def find_projects_on_runfolder(self, runfolder_name, only_these_projects=None):
-        runfolder = self.find_runfolder(runfolder_name)
-
-        names_of_project_on_runfolder = list(map(lambda x: x.name, runfolder.projects))
-
-        # If no projects have been specified, get all projects
-        if not only_these_projects:
-            projects_to_return = names_of_project_on_runfolder
-
-        log.debug("Projects to stage: {}".format(projects_to_return))
-
-        if not self._validate_project_lists(names_of_project_on_runfolder, projects_to_return):
-            raise ProjectNotFoundException("Projects to stage: {} do not match projects on runfolder: {}".
-                                           format(projects_to_return, names_of_project_on_runfolder))
-
-        for project in runfolder.projects:
-            if project.name in projects_to_return:
-                yield project
 
 
 class DeliveryService(object):
@@ -53,15 +15,18 @@ class DeliveryService(object):
     def __init__(self,
                  delivery_sources_repo,
                  general_project_repo,
-                 runfolder_repo,
+                 runfolder_service,
                  staging_service,
-                 mover_service):
+                 mover_service,
+                 project_links_directory,
+                 file_system_service = FileSystemService()):
         self.delivery_sources_repo = delivery_sources_repo
         self.staging_service = staging_service
         self.mover_service = mover_service
         self.general_project_repo = general_project_repo
-        self.runfolder_repo = runfolder_repo
-        self.runfolder_service = RunfolderService(runfolder_repo)
+        self.runfolder_service = runfolder_service
+        self.project_links_directory = project_links_directory
+        self.file_system_service = FileSystemService()
 
     def _validate_and_stage_source(self, source, force_delivery, path):
         #      check what status it has?
@@ -82,14 +47,11 @@ class DeliveryService(object):
         self.staging_service.stage_order(stage_order)
         return stage_order
 
-    def deliver_single_runfolder(self, runfolder_name, only_these_projects, force_delivery):
-
-        projects = self.runfolder_service.find_projects_on_runfolder(runfolder_name, only_these_projects)
-
+    def _start_stating_projects(self, projects, force_delivery):
         projects_and_stage_order_ids = {}
         for project in projects:
             source = self.delivery_sources_repo.create_source(project_name=project.name,
-                                                              source_name="{}/{}".format(runfolder_name,
+                                                              source_name="{}/{}".format(project.runfolder_name,
                                                                                          project.name),
                                                               path=project.path)
             stage_order = self._validate_and_stage_source(source, force_delivery, project.path)
@@ -97,8 +59,63 @@ class DeliveryService(object):
 
         return projects_and_stage_order_ids
 
+    def _create_links_area_for_project_runfolders(self, project_name, projects):
+        """
+        Creates a directory in which it creates links to all runfolders for the projects
+        given. This is useful so that we can then rsync that directory to
+        the staging area.
+        :param project_name: name of the project
+        :param projects: runfolders with the specified project on them
+        :return: the path to the dir created
+        """
+
+        project_dir = os.path.join(self.project_links_directory, project_name)
+        try:
+            self.file_system_service.mkdir(project_dir)
+        except FileExistsError as e:
+            log.warning("Project dir: {} already exists".format(project_dir))
+
+        for project in projects:
+            try:
+                link_name = os.path.join(project_dir, project.runfolder_name)
+                self.file_system_service.symlink(project.path, link_name)
+            except FileExistsError:
+                log.warning("Project link: {} already exists".format(project_dir))
+                continue
+
+        return self.file_system_service.abspath(project_dir)
+
+    def deliver_single_runfolder(self, runfolder_name, only_these_projects, force_delivery):
+        projects = self.runfolder_service.find_projects_on_runfolder(runfolder_name, only_these_projects)
+        return self._start_stating_projects(projects, force_delivery)
+
     def deliver_all_runfolders_for_project(self, project_name, mode):
-        pass
+        projects = list(self.runfolder_service.find_runfolders_for_project(project_name))
+
+        # TODO Parse mode - i.e. filter the project list based on the mode that should be
+        #      used
+
+        # If delivery type == "clean"
+        #   No runfolder project can have been delivered before
+        # If delivery type == "batch"
+        #   Only delivery none delivered runfolders
+        # If delivery type == force
+        #   Re-deliver all independent of status
+
+        if len(projects) < 1:
+            raise ProjectNotFoundException("Could not find any Project "
+                                           "folders for project name: {}".format(project_name))
+
+        links_directory = self._create_links_area_for_project_runfolders(project_name, projects)
+        source = self.delivery_sources_repo.create_source(project_name=project_name,
+                                                          source_name=os.path.basename(links_directory),
+                                                          path=links_directory)
+
+        stage_order = self._validate_and_stage_source(source, force_delivery=False, path=source.path)
+
+        # TODO Think about if links directory should be removed once it has been used...
+
+        return {source.project_name: stage_order.id}
 
     def deliver_arbitrary_directory_project(self, project_name, project_alias=None, force_delivery=False):
 

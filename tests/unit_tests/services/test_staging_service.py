@@ -83,7 +83,6 @@ class TestStagingService(AsyncTestCase):
 
         mock_db_session_factory = mock.MagicMock()
 
-        mock_runfolder_project_repo = mock.MagicMock()
 
         self.staging_service = StagingService(staging_dir="/tmp",
                                               project_links_directory="/tmp",
@@ -91,8 +90,7 @@ class TestStagingService(AsyncTestCase):
                                               staging_repo=mock_staging_repo,
                                               runfolder_repo=self.mock_runfolder_repo,
                                               session_factory=mock_db_session_factory,
-                                              project_dir_repo=self.mock_general_project_repo,
-                                              runfolder_project_repo=mock_runfolder_project_repo)
+                                              project_dir_repo=self.mock_general_project_repo)
         self.staging_service.io_loop_factory = MockIOLoop
         super(TestStagingService, self).setUp()
 
@@ -150,52 +148,6 @@ class TestStagingService(AsyncTestCase):
 
             res = yield self.staging_service.stage_order(stage_order=staging_order_in_progress)
 
-# TODO Move these tests to run on new delivery service
-#    # - Be able to stage a existing runfolder
-#    def test_stage_runfolder(self):
-#        runfolder1 = FAKE_RUNFOLDERS[0]
-#
-#        self.mock_runfolder_repo.get_runfolder.return_value = runfolder1
-#        mock_staging_repo = self.MockStagingRepo()
-#
-#        self.staging_service.staging_repo = mock_staging_repo
-#
-#        result = self.staging_service.stage_runfolder(
-#            runfolder_id=runfolder1.name, projects_to_stage=[])
-#
-#        expected = {'DEF_456': 2, 'ABC_123': 1}
-#        self.assertDictEqual(result, expected)
-#
-#        # - Reject stating a runfolder if the given projects is not available
-#        with self.assertRaises(ProjectNotFoundException):
-#            self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=['foo'])
-
-#    # - Reject staging a runfolder which does not exist runfolder
-#    def test_stage_runfolder_does_not_exist(self):
-#        with self.assertRaises(RunfolderNotFoundException):
-#
-#            self.mock_runfolder_repo.get_runfolder.return_value = None
-#            self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=[])
-
-#    # - Stage a 'general' directory if it exists
-#    def test_stage_directory(self):
-#        mock_staging_repo = self.MockStagingRepo()
-#
-#        self.staging_service.staging_repo = mock_staging_repo
-#
-#        self.mock_general_project_repo.get_projects.return_value = [GeneralProject(name='foo', path='/bar/foo'),
-#                                                                    GeneralProject(name='bar', path='/bar/foo')]
-#
-#        expected = {'foo': 1}
-#        result = self.staging_service.stage_directory('foo')
-#        self.assertDictEqual(expected, result)
-#
-#    # - Reject staging a directory that does not exist...
-#    def test_stage_directory_does_not_exist(self):
-#        with self.assertRaises(ProjectNotFoundException):
-#            self.mock_general_project_repo.get_projects.return_value = []
-#            self.staging_service.stage_directory('foo')
-
     # - Be able to get the status of a stage order
     def test_get_status_or_stage_order(self):
         # Returns correctly for existing order
@@ -235,39 +187,3 @@ class TestStagingService(AsyncTestCase):
         actual = self.staging_service.kill_process_of_staging_order(self.staging_order1.id)
         mock_os.kill.assert_not_called()
         self.assertFalse(actual)
-
-    def test__create_links_area_for_project_runfolders(self):
-        with tempfile.TemporaryDirectory() as tmpdirname:
-
-            self.staging_service.project_links_directory = tmpdirname
-
-            projects = [RunfolderProject(name="ABC_123",
-                                         path="/foo/160930_ST-E00216_0112_BH37CWALXX/Projects/ABC_123",
-                                         runfolder_path="/foo/160930_ST-E00216_0112_BH37CWALXX",
-                                         runfolder_name="160930_ST-E00216_0112_BH37CWALXX"),
-                        RunfolderProject(name="ABC_123",
-                                         path="/foo/160930_ST-E00216_0111_BH37CWALXX/Projects/ABC_123",
-                                         runfolder_path="/foo/160930_ST-E00216_0111_BH37CWALXX/",
-                                         runfolder_name="160930_ST-E00216_0111_BH37CWALXX")]
-
-            project_link_area = self.staging_service._create_links_area_for_project_runfolders("ABC_123", projects)
-
-            project_linking_area_base = os.path.join(self.staging_service.project_links_directory, "ABC_123")
-            self.assertEqual(project_link_area,
-                             project_linking_area_base)
-
-            self.assertTrue(
-                os.path.islink(
-                    os.path.join(
-                        project_linking_area_base,
-                        "160930_ST-E00216_0112_BH37CWALXX")))
-
-            self.assertTrue(
-                os.path.islink(
-                    os.path.join(
-                        project_linking_area_base,
-                        "160930_ST-E00216_0111_BH37CWALXX")))
-
-#    def test_stage_runfolders_for_project(self):
-#        self.assertTrue(False)
-        
