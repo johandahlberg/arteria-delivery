@@ -71,7 +71,7 @@ class DeliveryService(object):
         # override is activated
         if source_exists and not force_delivery:
             raise ProjectAlreadyDeliveredException(
-                "Project {} has already been delivered.".format(source.project_name))
+                "Project source {} has already been delivered.".format(source))
         elif source_exists and force_delivery:
             self.delivery_sources_repo.update_path_of_source(source, new_path=path)
         else:

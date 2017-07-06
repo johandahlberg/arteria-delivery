@@ -129,7 +129,9 @@ class StagingRunfolderHandler(BaseStagingHandler):
             self.write_json({'staging_order_links': link_results,
                              'staging_order_ids': id_results})
         except ProjectNotFoundException as e:
-            self.set_status(NOT_FOUND, reason=e.msg)
+            self.set_status(NOT_FOUND, reason=str(e))
+        except ProjectAlreadyDeliveredException as e:
+            self.set_status(FORBIDDEN, reason=str(e))
 
 
 class StageGeneralDirectoryHandler(BaseStagingHandler):

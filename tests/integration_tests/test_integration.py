@@ -76,46 +76,78 @@ class TestIntegration(AsyncHTTPTestCase):
         # Note that this is a test which skips mover (since to_outbox is not expected to be installed on the system
         # where this runs)
 
-        url = "/".join([self.API_BASE, "stage", "runfolder", "160930_ST-E00216_0111_BH37CWALXX"])
-        response = self.fetch(url, method='POST', body='')
-        self.assertEqual(response.code, 202)
+        with tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/', prefix='160930_ST-E00216_0111_BH37CWALXX_') as tmp_dir:
 
-        response_json = json.loads(response.body)
+            dir_name = os.path.basename(tmp_dir)
+            tmp_proj_dir = os.path.join(tmp_dir, 'Projects', 'ABC_123')
+            os.makedirs(tmp_proj_dir)
+            with open(os.path.join(tmp_proj_dir, 'test_file'), 'wb') as f:
+                f.write(os.urandom(1024))
 
-        staging_status_links = response_json.get("staging_order_links")
+            url = "/".join([self.API_BASE, "stage", "runfolder", dir_name])
+            response = self.fetch(url, method='POST', body='')
+            self.assertEqual(response.code, 202)
 
-        for project, link in staging_status_links.items():
+            response_json = json.loads(response.body)
 
-            self.assertEqual(project, "ABC_123")
+            staging_status_links = response_json.get("staging_order_links")
 
-            assert_eventually_equals(self,
-                                     timeout=5,
-                                     delay=1,
-                                     f=partial(self._get_delivery_status, link),
-                                     expected=StagingStatus.staging_successful.name)
+            for project, link in staging_status_links.items():
 
-            # The size of the fake project is 15 bytes
-            assert_eventually_equals(self,
-                                     timeout=5,
-                                     delay=1,
-                                     f=partial(self._get_size, link),
-                                     expected=15)
+                self.assertEqual(project, "ABC_123")
 
-        staging_order_project_and_id = response_json.get("staging_order_ids")
+                assert_eventually_equals(self,
+                                         timeout=5,
+                                         delay=1,
+                                         f=partial(self._get_delivery_status, link),
+                                         expected=StagingStatus.staging_successful.name)
 
-        for project, staging_id in staging_order_project_and_id.items():
-            delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
-            delivery_body = {'delivery_project_id': 'fakedeliveryid2016',
-                             'skip_mover': True}
-            delivery_resp = self.fetch(delivery_url, method='POST', body=json.dumps(delivery_body))
-            delivery_resp_as_json = json.loads(delivery_resp.body)
-            delivery_link = delivery_resp_as_json['delivery_order_link']
+                # The size of the fake project is 1024 bytes
+                assert_eventually_equals(self,
+                                         timeout=5,
+                                         delay=1,
+                                         f=partial(self._get_size, link),
+                                         expected=1024)
 
-            assert_eventually_equals(self,
-                                     timeout=5,
-                                     delay=1,
-                                     f=partial(self._get_delivery_status, delivery_link),
-                                     expected=DeliveryStatus.delivery_skipped.name)
+            staging_order_project_and_id = response_json.get("staging_order_ids")
+
+            for project, staging_id in staging_order_project_and_id.items():
+                delivery_url = '/'.join([self.API_BASE, 'deliver', 'stage_id', str(staging_id)])
+                delivery_body = {'delivery_project_id': 'fakedeliveryid2016',
+                                 'skip_mover': True}
+                delivery_resp = self.fetch(delivery_url, method='POST', body=json.dumps(delivery_body))
+                delivery_resp_as_json = json.loads(delivery_resp.body)
+                delivery_link = delivery_resp_as_json['delivery_order_link']
+
+                assert_eventually_equals(self,
+                                         timeout=5,
+                                         delay=1,
+                                         f=partial(self._get_delivery_status, delivery_link),
+                                         expected=DeliveryStatus.delivery_skipped.name)
+
+    def test_cannot_stage_the_same_runfolder_twice(self):
+        # Note that this is a test which skips mover (since to_outbox is not expected to be installed on the system
+        # where this runs)
+
+        with tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/', prefix='160930_ST-E00216_0111_BH37CWALXX_') as tmp_dir:
+
+            dir_name = os.path.basename(tmp_dir)
+            tmp_proj_dir = os.path.join(tmp_dir, 'Projects', 'ABC_123')
+            os.makedirs(tmp_proj_dir)
+            with open(os.path.join(tmp_proj_dir, 'test_file'), 'wb') as f:
+                f.write(os.urandom(1024))
+
+            url = "/".join([self.API_BASE, "stage", "runfolder", dir_name])
+            response = self.fetch(url, method='POST', body='')
+            self.assertEqual(response.code, 202)
+
+            response = self.fetch(url, method='POST', body='')
+            print(response.reason)
+            self.assertEqual(response.code, 403)
+
+            # Unless you force the delivery
+            response = self.fetch(url, method='POST', body=json.dumps({"force_delivery": True}))
+            self.assertEqual(response.code, 202)
 
     def test_can_stage_and_delivery_project_dir(self):
         # Note that this is a test which skips mover (since to_outbox is not expected to be installed on the system
