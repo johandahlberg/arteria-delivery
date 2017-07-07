@@ -101,7 +101,7 @@ class DeliveryService(object):
                                                                                          project.name),
                                                               path=project.path)
             try:
-                self._validate_source(source)
+                self._validate_source(source, force_delivery=False, path=project.path)
                 self.delivery_sources_repo.add_source(source)
             except ProjectAlreadyDeliveredException as e:
                 if mode == DeliveryMode.CLEAN:
@@ -126,8 +126,8 @@ class DeliveryService(object):
         if not batch_nbr:
             batch_nbr = 1
 
-        projects_to_deliver = self._get_projects_for_delivery(projects)
-        links_directory = self._create_links_area_for_project_runfolders(project_name, projects_to_deliver)
+        projects_to_deliver = self._get_projects_for_delivery(projects, mode)
+        links_directory = self._create_links_area_for_project_runfolders(project_name, projects_to_deliver, batch_nbr)
 
         source = self.delivery_sources_repo.create_source(project_name=project_name,
                                                           source_name="{}/batch{}".format(project_name, batch_nbr),
@@ -135,9 +135,6 @@ class DeliveryService(object):
                                                           batch_nbr=batch_nbr)
 
         stage_order = self._validate_and_stage_source(source, force_delivery=False, path=source.path)
-
-        # TODO Think about if links directory should be removed once it has been used...
-
         return {source.project_name: stage_order.id}
 
     def deliver_arbitrary_directory_project(self, project_name, dir_name=None, force_delivery=False):

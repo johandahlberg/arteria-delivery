@@ -8,6 +8,7 @@ from delivery.exceptions import ProjectAlreadyDeliveredException
 
 from delivery.models.project import RunfolderProject, GeneralProject
 from delivery.models.db_models import StagingOrder, StagingStatus, DeliverySource
+from delivery.models.delivery_modes import DeliveryMode
 from delivery.services.delivery_service import DeliveryService
 
 from delivery.services.mover_service import MoverDeliveryService
@@ -139,56 +140,111 @@ class TestDeliveryService(unittest.TestCase):
         result = self.delivery_service.deliver_arbitrary_directory_project("ABC_123", force_delivery=True)
         self.assertTrue(result["ABC_123"] == 1)
 
+    def test_deliver_single_runfolder(self):
+        staging_service_mock = mock.create_autospec(StagingService)
+        staging_service_mock.create_new_stage_order.return_value = \
+            StagingOrder(id=1,
+                         source=self.runfolder_projects[0].path,
+                         status=StagingStatus.pending,
+                         staging_target='/foo/bar',
+                         size=1024)
+        runfolder_service_mock = mock.create_autospec(RunfolderService)
 
+        def my_project_iterator(runfolder_name, only_these_projects):
+            yield self.runfolder_projects[0]
+        runfolder_service_mock.find_projects_on_runfolder = my_project_iterator
 
-# TODO Move these tests to run on new delivery service
-#    # - Be able to stage a existing runfolder
-#    def test_stage_runfolder(self):
-#        runfolder1 = FAKE_RUNFOLDERS[0]
-#
-#        self.mock_runfolder_repo.get_runfolder.return_value = runfolder1
-#        mock_staging_repo = self.MockStagingRepo()
-#
-#        self.staging_service.staging_repo = mock_staging_repo
-#
-#        result = self.staging_service.stage_runfolder(
-#            runfolder_id=runfolder1.name, projects_to_stage=[])
-#
-#        expected = {'DEF_456': 2, 'ABC_123': 1}
-#        self.assertDictEqual(result, expected)
-#
-#        # - Reject stating a runfolder if the given projects is not available
-#        with self.assertRaises(ProjectNotFoundException):
-#            self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=['foo'])
+        delivery_sources_repo_mock = mock.create_autospec(DatabaseBasedDeliverySourcesRepository)
+        delivery_sources_repo_mock.source_exists.return_value = False
+        delivery_sources_repo_mock.create_source.return_value = \
+            DeliverySource(project_name="ABC_123",
+                           source_name="{}/{}".format(
+                               self.runfolder_projects[0].runfolder_name,
+                               self.runfolder_projects[0].name),
+                           path=self.general_project.path)
 
-#    # - Reject staging a runfolder which does not exist runfolder
-#    def test_stage_runfolder_does_not_exist(self):
-#        with self.assertRaises(RunfolderNotFoundException):
-#
-#            self.mock_runfolder_repo.get_runfolder.return_value = None
-#            self.staging_service.stage_runfolder(runfolder_id='foo_runfolder', projects_to_stage=[])
+        self._compose_delivery_service(runfolder_service=runfolder_service_mock,
+                                       delivery_sources_repo=delivery_sources_repo_mock,
+                                       staging_service=staging_service_mock)
 
-#    # - Stage a 'general' directory if it exists
-#    def test_stage_directory(self):
-#        mock_staging_repo = self.MockStagingRepo()
-#
-#        self.staging_service.staging_repo = mock_staging_repo
-#
-#        self.mock_general_project_repo.get_projects.return_value = [GeneralProject(name='foo', path='/bar/foo'),
-#                                                                    GeneralProject(name='bar', path='/bar/foo')]
-#
-#        expected = {'foo': 1}
-#        result = self.staging_service.stage_directory('foo')
-#        self.assertDictEqual(expected, result)
-#
-#    # - Reject staging a directory that does not exist...
-#    def test_stage_directory_does_not_exist(self):
-#        with self.assertRaises(ProjectNotFoundException):
-#            self.mock_general_project_repo.get_projects.return_value = []
-#            self.staging_service.stage_directory('foo')
+        result = self.delivery_service.deliver_single_runfolder(runfolder_name="160930_ST-E00216_0112_BH37CWALXX",
+                                                                only_these_projects=None,
+                                                                force_delivery=False)
+        self.assertEqual(result["ABC_123"], 1)
 
-#    def test_stage_runfolders_for_project(self):
-#        self.assertTrue(False)
+    def test_deliver_single_runfolder_force(self):
+        staging_service_mock = mock.create_autospec(StagingService)
+        staging_service_mock.create_new_stage_order.return_value = \
+            StagingOrder(id=1,
+                         source=self.runfolder_projects[0].path,
+                         status=StagingStatus.pending,
+                         staging_target='/foo/bar',
+                         size=1024)
+        runfolder_service_mock = mock.create_autospec(RunfolderService)
+
+        def my_project_iterator(runfolder_name, only_these_projects):
+            yield self.runfolder_projects[0]
+        runfolder_service_mock.find_projects_on_runfolder = my_project_iterator
+
+        delivery_sources_repo_mock = mock.create_autospec(DatabaseBasedDeliverySourcesRepository)
+        delivery_sources_repo_mock.source_exists.return_value = True
+        delivery_sources_repo_mock.create_source.return_value = \
+            DeliverySource(project_name="ABC_123",
+                           source_name="{}/{}".format(
+                               self.runfolder_projects[0].runfolder_name,
+                               self.runfolder_projects[0].name),
+                           path=self.general_project.path)
+
+        self._compose_delivery_service(runfolder_service=runfolder_service_mock,
+                                       delivery_sources_repo=delivery_sources_repo_mock,
+                                       staging_service=staging_service_mock)
+
+        with self.assertRaises(ProjectAlreadyDeliveredException):
+            self.delivery_service.deliver_single_runfolder(runfolder_name="160930_ST-E00216_0112_BH37CWALXX",
+                                                           only_these_projects=None,
+                                                           force_delivery=False)
+        result = self.delivery_service.deliver_single_runfolder(runfolder_name="160930_ST-E00216_0112_BH37CWALXX",
+                                                                only_these_projects=None,
+                                                                force_delivery=True)
+        self.assertEqual(result["ABC_123"], 1)
+
+    def test_deliver_all_runfolders_for_project(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            staging_service_mock = mock.create_autospec(StagingService)
+            staging_service_mock.create_new_stage_order.return_value = \
+                StagingOrder(id=1,
+                             source=os.path.join(tmpdirname, "ABC_123", "1"),
+                             status=StagingStatus.pending,
+                             staging_target='/foo/bar',
+                             size=1024)
+            runfolder_service_mock = mock.create_autospec(RunfolderService)
+
+            def my_project_iterator(project_name):
+                for proj in self.runfolder_projects:
+                    yield proj
+            runfolder_service_mock.find_runfolders_for_project = my_project_iterator
+
+            delivery_sources_repo_mock = mock.create_autospec(DatabaseBasedDeliverySourcesRepository)
+            delivery_sources_repo_mock.source_exists.return_value = False
+            delivery_sources_repo_mock.find_highest_batch_nbr.return_value = 1
+            delivery_sources_repo_mock.create_source.return_value = \
+                DeliverySource(project_name="ABC_123",
+                               source_name="{}/{}".format(
+                                   "ABC_123",
+                                   "batch1"),
+                               path=self.general_project.path,
+                               batch=1)
+
+            self._compose_delivery_service(runfolder_service=runfolder_service_mock,
+                                           delivery_sources_repo=delivery_sources_repo_mock,
+                                           staging_service=staging_service_mock,
+                                           project_links_dir=tmpdirname)
+
+            result = self.delivery_service.deliver_all_runfolders_for_project(project_name="ABC_123",
+                                                                              mode=DeliveryMode.CLEAN)
+            self.assertEqual(result["ABC_123"], 1)
+
 
 if __name__ == '__main__':
     unittest.main()

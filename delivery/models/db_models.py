@@ -31,9 +31,11 @@ class DeliverySource(SQLAlchemyBase):
     batch = Column(Integer, nullable=False, default=1)
 
     def __repr__(self):
-        return "Delivery source: {project_name: %s, source: %s, path: %s}" % (self.project_name,
-                                                                              self.source_name,
-                                                                              self.path)
+        return "Delivery source: {project_name: %s, source: %s, path: %s, batch: %s}" % \
+               (self.project_name,
+                self.source_name,
+                self.path,
+                self.batch)
 
 class StagingStatus(base_enum.Enum):
     """
