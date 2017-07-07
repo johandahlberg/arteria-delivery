@@ -21,6 +21,7 @@ def upgrade():
     sa.Column('project_name', sa.String(), nullable=False),
     sa.Column('source_name', sa.String(), nullable=False),
     sa.Column('path', sa.String(), nullable=False),
+    sa.Column('batch', sa.Integer(), nullable=False, default=1),
     sa.PrimaryKeyConstraint('project_name', 'source_name')
     )
     ### end Alembic commands ###

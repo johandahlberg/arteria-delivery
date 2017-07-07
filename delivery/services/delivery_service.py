@@ -4,6 +4,7 @@ import logging
 
 from delivery.services.file_system_service import FileSystemService
 from delivery.exceptions import ProjectAlreadyDeliveredException, RunfolderNotFoundException, ProjectNotFoundException
+from delivery.models.delivery_modes import DeliveryMode
 
 from delivery.models.db_models import StagingStatus
 
@@ -26,10 +27,9 @@ class DeliveryService(object):
         self.general_project_repo = general_project_repo
         self.runfolder_service = runfolder_service
         self.project_links_directory = project_links_directory
-        self.file_system_service = FileSystemService()
+        self.file_system_service = file_system_service
 
-    def _validate_and_stage_source(self, source, force_delivery, path):
-        #      check what status it has?
+    def _validate_source(self, source, force_delivery, path):
         source_exists = self.delivery_sources_repo.source_exists(source)
 
         # If such a Delivery source exists, only proceed if
@@ -42,6 +42,8 @@ class DeliveryService(object):
         else:
             self.delivery_sources_repo.add_source(source)
 
+    def _validate_and_stage_source(self, source, force_delivery, path):
+        self._validate_source(source, force_delivery, path)
         # Start staging
         stage_order = self.staging_service.create_new_stage_order(path=source.path)
         self.staging_service.stage_order(stage_order)
@@ -89,27 +91,47 @@ class DeliveryService(object):
         projects = self.runfolder_service.find_projects_on_runfolder(runfolder_name, only_these_projects)
         return self._start_stating_projects(projects, force_delivery)
 
+    def _get_projects_for_delivery(self, projects, mode):
+        # First create sources for all the projects, depending on mode
+        # The make a separate delivery source for the actually stages folder...
+        for project in projects:
+            source = self.delivery_sources_repo.create_source(project_name=project.name,
+                                                              source_name="{}/{}".format(project.runfolder_name,
+                                                                                         project.name),
+                                                              path=project.path)
+            try:
+                self._validate_source(source)
+                self.delivery_sources_repo.add_source(source)
+            except ProjectAlreadyDeliveredException as e:
+                if mode == DeliveryMode.CLEAN:
+                    raise e
+                elif mode == DeliveryMode.BATCH:
+                    continue
+                elif mode == DeliveryMode.FORCE:
+                    self.delivery_sources_repo.update_path_of_source(source, project.path)
+                    yield project
+                else:
+                    raise NotImplementedError("This is not a valid state, delivery mode needs to be CLEAN/"
+                                              "BATCH/FORCE.")
+
     def deliver_all_runfolders_for_project(self, project_name, mode):
         projects = list(self.runfolder_service.find_runfolders_for_project(project_name))
-
-        # TODO Parse mode - i.e. filter the project list based on the mode that should be
-        #      used
-
-        # If delivery type == "clean"
-        #   No runfolder project can have been delivered before
-        # If delivery type == "batch"
-        #   Only delivery none delivered runfolders
-        # If delivery type == force
-        #   Re-deliver all independent of status
 
         if len(projects) < 1:
             raise ProjectNotFoundException("Could not find any Project "
                                            "folders for project name: {}".format(project_name))
 
-        links_directory = self._create_links_area_for_project_runfolders(project_name, projects)
+        projects_to_deliver = self._get_projects_for_delivery(projects)
+        links_directory = self._create_links_area_for_project_runfolders(project_name, projects_to_deliver)
+
+        batch_nbr = self.delivery_sources_repo.find_highest_batch_nbr(project_name)
+        if not batch_nbr:
+            batch_nbr = 1
+
         source = self.delivery_sources_repo.create_source(project_name=project_name,
-                                                          source_name=os.path.basename(links_directory),
-                                                          path=links_directory)
+                                                          source_name="{}/batch{}".format(project_name, batch_nbr),
+                                                          path=links_directory,
+                                                          batch_nbr=batch_nbr)
 
         stage_order = self._validate_and_stage_source(source, force_delivery=False, path=source.path)
 

@@ -1,5 +1,6 @@
 
 from sqlalchemy import exists
+from sqlalchemy.sql.expression import func
 
 from delivery.models.db_models import DeliverySource, StagingOrder, StagingStatus, DeliveryOrder, DeliveryStatus
 
@@ -23,10 +24,11 @@ class DatabaseBasedDeliverySourcesRepository(object):
         return self.session.query(DeliverySource).all()
 
     @staticmethod
-    def create_source(project_name, source_name, path):
+    def create_source(project_name, source_name, path, batch_nbr=None):
         return DeliverySource(project_name=project_name,
                               source_name=source_name,
-                              path=path)
+                              path=path,
+                              batch=batch_nbr)
 
     def add_source(self, source):
         self.session.add(source)
@@ -47,3 +49,8 @@ class DatabaseBasedDeliverySourcesRepository(object):
                                         where(DeliverySource.source_name == source.source_name))
         return does_exist.scalar()
 
+    def find_highest_batch_nbr(self, project_name):
+        return self.session.\
+            query(func.max(DeliverySource.batch)).\
+            filter(DeliverySource.project_name == project_name).\
+            scalar()

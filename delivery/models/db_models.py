@@ -28,6 +28,8 @@ class DeliverySource(SQLAlchemyBase):
     # The path to the source on disk at the time of creation
     path = Column(String, nullable=False)
 
+    batch = Column(Integer, nullable=False, default=1)
+
     def __repr__(self):
         return "Delivery source: {project_name: %s, source: %s, path: %s}" % (self.project_name,
                                                                               self.source_name,
