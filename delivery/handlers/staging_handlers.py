@@ -181,7 +181,7 @@ class StageGeneralDirectoryHandler(BaseStagingHandler):
         try:
             stage_order_and_id = self.delivery_service.\
                 deliver_arbitrary_directory_project(project_name=directory_name,
-                                                    project_alias=project_alias,
+                                                    dir_name=project_alias,
                                                     force_delivery=force_delivery)
 
             link_results, id_results = self._construct_response_from_project_and_status(stage_order_and_id)

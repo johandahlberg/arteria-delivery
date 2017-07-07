@@ -98,3 +98,12 @@ class FileSystemService(object):
         :return: None
         """
         os.mkdir(path)
+
+    @staticmethod
+    def makedirs(path):
+        """
+        shadows os.makedirs
+        :param path: to dir to create
+        :return: None
+        """
+        os.makedirs(path)

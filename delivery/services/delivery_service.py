@@ -20,7 +20,7 @@ class DeliveryService(object):
                  staging_service,
                  mover_service,
                  project_links_directory,
-                 file_system_service = FileSystemService()):
+                 file_system_service=FileSystemService()):
         self.delivery_sources_repo = delivery_sources_repo
         self.staging_service = staging_service
         self.mover_service = mover_service
@@ -61,19 +61,20 @@ class DeliveryService(object):
 
         return projects_and_stage_order_ids
 
-    def _create_links_area_for_project_runfolders(self, project_name, projects):
+    def _create_links_area_for_project_runfolders(self, project_name, projects, batch_nbr):
         """
         Creates a directory in which it creates links to all runfolders for the projects
         given. This is useful so that we can then rsync that directory to
         the staging area.
         :param project_name: name of the project
         :param projects: runfolders with the specified project on them
+        :param batch_nbr: which batch of deliveries of this project this corresponds to
         :return: the path to the dir created
         """
 
-        project_dir = os.path.join(self.project_links_directory, project_name)
+        project_dir = os.path.join(self.project_links_directory, project_name, str(batch_nbr))
         try:
-            self.file_system_service.mkdir(project_dir)
+            self.file_system_service.makedirs(project_dir)
         except FileExistsError as e:
             log.warning("Project dir: {} already exists".format(project_dir))
 
@@ -121,12 +122,12 @@ class DeliveryService(object):
             raise ProjectNotFoundException("Could not find any Project "
                                            "folders for project name: {}".format(project_name))
 
-        projects_to_deliver = self._get_projects_for_delivery(projects)
-        links_directory = self._create_links_area_for_project_runfolders(project_name, projects_to_deliver)
-
         batch_nbr = self.delivery_sources_repo.find_highest_batch_nbr(project_name)
         if not batch_nbr:
             batch_nbr = 1
+
+        projects_to_deliver = self._get_projects_for_delivery(projects)
+        links_directory = self._create_links_area_for_project_runfolders(project_name, projects_to_deliver)
 
         source = self.delivery_sources_repo.create_source(project_name=project_name,
                                                           source_name="{}/batch{}".format(project_name, batch_nbr),
@@ -139,13 +140,13 @@ class DeliveryService(object):
 
         return {source.project_name: stage_order.id}
 
-    def deliver_arbitrary_directory_project(self, project_name, project_alias=None, force_delivery=False):
+    def deliver_arbitrary_directory_project(self, project_name, dir_name=None, force_delivery=False):
 
-        if not project_alias:
-            project_alias = project_name
+        if not dir_name:
+            dir_name = project_name
 
         # Construct DeliverySource for the project
-        project = self.general_project_repo.get_project(project_alias)
+        project = self.general_project_repo.get_project(dir_name)
         # Check if such a DeliverySource already exists.
 
         source = self.delivery_sources_repo.create_source(project_name=project_name,
