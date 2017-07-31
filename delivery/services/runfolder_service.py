@@ -31,7 +31,9 @@ class RunfolderService(object):
         names_of_project_on_runfolder = list(map(lambda x: x.name, runfolder.projects))
 
         # If no projects have been specified, get all projects
-        if not only_these_projects:
+        if only_these_projects:
+            projects_to_return = only_these_projects
+        else:
             projects_to_return = names_of_project_on_runfolder
 
         log.debug("Projects to stage: {}".format(projects_to_return))
