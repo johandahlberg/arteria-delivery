@@ -19,13 +19,10 @@ class FileSystemService(object):
         :param base_path: base path to list directories in.
         :return: a generator of paths to directories
         """
-
-        log.debug("Listing dirs in: {}".format(os.path.abspath(base_path)))
         for my_dir in os.listdir(base_path):
             dir_abs_path = os.path.abspath(os.path.join(base_path, my_dir))
 
             if os.path.isdir(dir_abs_path):
-                log.debug("Found dir: {}".format(dir_abs_path))
                 yield dir_abs_path
 
     def find_project_directories(self, projects_base_dir):
