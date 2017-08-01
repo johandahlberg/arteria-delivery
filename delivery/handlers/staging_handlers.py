@@ -1,14 +1,14 @@
 
 import logging
 
-from tornado.gen import Task, coroutine
-from tornado.web import asynchronous
+from tornado.gen import coroutine
 
 from arteria.web.handlers import BaseRestHandler
 
 from delivery.handlers import *
 from delivery.exceptions import ProjectNotFoundException,ProjectAlreadyDeliveredException
 
+from delivery.models.delivery_modes import DeliveryMode
 
 log = logging.getLogger(__name__)
 
@@ -37,15 +37,35 @@ class StagingProjectRunfoldersHandler(BaseStagingHandler):
     canceling, etc can then be handled by the more general `StagingHandler`
     """
 
-    def initialize(self, staging_service, **kwargs):
-        self.staging_service = staging_service
+    def initialize(self, delivery_service, **kwargs):
+        self.delivery_service = delivery_service
 
     @coroutine
     def post(self, project_id):
         """
-        TODO Write docs here...
-        """
+        This endpoint allows all runfolders for a specific project to be staged. Depending on which `delivery_mode`
+        is specified different behaviour will be exhibited. The possible modes are CLEAN, BATCH and FORCE. If CLEAN
+        is specified the staging will only be allowed if the project has not been delivered before. If BATCH is
+        specified, any runfolders which have not previously been staged will be staged. If FORCE is specified all
+        runfolders will, regardless of their current status, be staged together.
 
+        Here is a python code example of how to call the endpoint.
+
+            import requests
+            import json
+
+            url = "http://molmed-43:8080/api/1.0/stage/project/runfolders/ABC_123"
+
+            payload = {'delivery_mode': 'BATCH'}
+            headers = {
+            'content-type': "application/json",
+            }
+
+            response = requests.request("POST", url, data=json.dumps(payload), headers=headers)
+
+            print(response.text)
+
+        """
         log.debug("Trying to stage runfolders for project: {}".format(project_id))
 
         try:
@@ -53,22 +73,35 @@ class StagingProjectRunfoldersHandler(BaseStagingHandler):
         except ValueError:
             request_data = {}
 
+        if not request_data:
+            request_data = {}
+
+        requested_delivery_mode = request_data.get("delivery_mode", None)
         try:
-            delivery_type = request_data.get("delivery_type", None)
+            delivery_mode = DeliveryMode[requested_delivery_mode]
+            log.info("Will attempt to stage runfolders for project {} with type {}".format(project_id, delivery_mode))
 
-            if not delivery_type:
-                raise ValueError('Delivery type: {} was not supported. Please give: "clean"/"batch"/"force".')
-
-            log.debug("Will attempt to stage runfolders for project {} with type {}".format(project_id, delivery_type))
-
-            project_and_stage_id = self.staging_service.stage_runfolders_for_project(project_id, delivery_type)
+            project_and_stage_id = self.delivery_service.deliver_all_runfolders_for_project(project_id, delivery_mode)
             links, staging_ids_ids = self._construct_response_from_project_and_status(project_and_stage_id)
             self.set_status(ACCEPTED)
-            # TODO Check that this is what Arteria expects...
             self.write_json({'staging_order_links': links,
                              'staging_order_ids': staging_ids_ids})
         except ProjectNotFoundException as e:
+            log.warning("Request issued for non-existent project {}".format(project_id))
             self.set_status(NOT_FOUND, reason=e.msg)
+        except ProjectAlreadyDeliveredException as e:
+            log.warning("Project: {} has already been delivered, and is not compatible "
+                        "with delivery mode: {}".format(project_id, delivery_mode))
+            self.set_status(FORBIDDEN,
+                            reason="This project has already been delivered! Maybe you want to deliver in BATCH mode "
+                                   "instead? Or if that is not the case you will need to force the delivery with "
+                                   "FORCE")
+        except KeyError as e:
+            log.warning("A non-valid delivery mode was requested: {}."
+                        " Will deny request.".format(requested_delivery_mode))
+            self.set_status(FORBIDDEN,
+                            reason="Delivery mode: {} was not permitted. Only: {} are valid stated".format(
+                                requested_delivery_mode, [m.value for m in DeliveryMode]))
 
 
 class StagingRunfolderHandler(BaseStagingHandler):
@@ -173,6 +206,10 @@ class StageGeneralDirectoryHandler(BaseStagingHandler):
         try:
             request_data = self.body_as_object()
         except ValueError:
+            request_data = {}
+
+        # body as object will return None if no data is given
+        if not request_data:
             request_data = {}
 
         project_alias = request_data.get("project_alias", None)
