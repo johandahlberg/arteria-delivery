@@ -76,15 +76,16 @@ class DeliveryService(object):
         try:
             self.file_system_service.makedirs(project_dir)
         except FileExistsError as e:
-            log.warning("Project dir: {} already exists".format(project_dir))
+            log.error("Project dir: {} already exists".format(project_dir))
+            raise e
 
         for project in projects:
             try:
                 link_name = os.path.join(project_dir, project.runfolder_name)
                 self.file_system_service.symlink(project.path, link_name)
-            except FileExistsError:
-                log.warning("Project link: {} already exists".format(project_dir))
-                continue
+            except FileExistsError as e:
+                log.error("Project link: {} already exists".format(project_dir))
+                raise e
 
         return self.file_system_service.abspath(project_dir)
 
