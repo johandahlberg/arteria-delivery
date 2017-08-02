@@ -94,7 +94,7 @@ def compose_application(config):
 
     def _assert_is_dir(directory):
         if not FileSystemService.isdir(directory):
-            raise AssertionError("{} is not a directory".format(directory))
+            raise AssertionError("{} is not a directory".format(os.path.abspath(directory)))
 
     staging_dir = config['staging_directory']
     _assert_is_dir(staging_dir)
