@@ -172,11 +172,11 @@ class DeliveryService(object):
         log.debug("This will be batch nbr: {}".format(batch_nbr))
 
         links_directory = self._create_links_area_for_project_runfolders(project_name, projects_to_deliver, batch_nbr)
-
         source = self.delivery_sources_repo.create_source(project_name=project_name,
                                                           source_name="{}/batch{}".format(project_name, batch_nbr),
                                                           path=links_directory,
                                                           batch_nbr=batch_nbr)
+        self.delivery_sources_repo.add_source(source)
 
         stage_order = self.staging_service.create_new_stage_order(path=source.path)
         self.staging_service.stage_order(stage_order)
