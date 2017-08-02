@@ -27,6 +27,11 @@ class TestIntegration(AsyncHTTPTestCase):
         status_response = self.wait()
         return json.loads(status_response.body)["size"]
 
+    def _create_projects_dir_with_random_data(self, base_dir, proj_name='ABC_123'):
+        tmp_proj_dir = os.path.join(base_dir, 'Projects', proj_name)
+        os.makedirs(tmp_proj_dir)
+        with open(os.path.join(tmp_proj_dir, 'test_file'), 'wb') as f:
+            f.write(os.urandom(1024))
 
     API_BASE = "/api/1.0"
 
@@ -79,10 +84,7 @@ class TestIntegration(AsyncHTTPTestCase):
         with tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/', prefix='160930_ST-E00216_0111_BH37CWALXX_') as tmp_dir:
 
             dir_name = os.path.basename(tmp_dir)
-            tmp_proj_dir = os.path.join(tmp_dir, 'Projects', 'ABC_123')
-            os.makedirs(tmp_proj_dir)
-            with open(os.path.join(tmp_proj_dir, 'test_file'), 'wb') as f:
-                f.write(os.urandom(1024))
+            self._create_projects_dir_with_random_data(tmp_dir)
 
             url = "/".join([self.API_BASE, "stage", "runfolder", dir_name])
             response = self.fetch(url, method='POST', body='')
@@ -132,10 +134,7 @@ class TestIntegration(AsyncHTTPTestCase):
         with tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/', prefix='160930_ST-E00216_0111_BH37CWALXX_') as tmp_dir:
 
             dir_name = os.path.basename(tmp_dir)
-            tmp_proj_dir = os.path.join(tmp_dir, 'Projects', 'ABC_123')
-            os.makedirs(tmp_proj_dir)
-            with open(os.path.join(tmp_proj_dir, 'test_file'), 'wb') as f:
-                f.write(os.urandom(1024))
+            self._create_projects_dir_with_random_data(tmp_dir)
 
             url = "/".join([self.API_BASE, "stage", "runfolder", dir_name])
             response = self.fetch(url, method='POST', body='')
@@ -209,11 +208,100 @@ class TestIntegration(AsyncHTTPTestCase):
             response = self.fetch(url, method='POST', body=json.dumps({"force_delivery": True}))
             self.assertEqual(response.code, 202)
 
-#    def test_can_stage_and_deliver_clean_flowcells(self):
-#        self.assertTrue(False)
-#
-#    def test_can_stage_and_deliver_batched_flowcells(self):
-#        self.assertTrue(False)
-#
-#    def test_can_stage_and_deliver_force_flowcells(self):
-#        self.assertTrue(False)
+    def test_can_stage_and_deliver_clean_flowcells(self):
+        with tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/',
+                                         prefix='160930_ST-E00216_0555_BH37CWALXX_') as tmpdir1,\
+             tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/',
+                                         prefix='160930_ST-E00216_0556_BH37CWALXX_') as tmpdir2:
+                self._create_projects_dir_with_random_data(tmpdir1, 'XYZ_123')
+                self._create_projects_dir_with_random_data(tmpdir2, 'XYZ_123')
+
+                url = "/".join([self.API_BASE, "stage", "project", 'runfolders', 'XYZ_123'])
+                payload = {'delivery_mode': 'CLEAN'}
+                response = self.fetch(url, method='POST', body=json.dumps(payload))
+                self.assertEqual(response.code, 202)
+
+                payload = {'delivery_mode': 'CLEAN'}
+                response_failed = self.fetch(url, method='POST', body=json.dumps(payload))
+                self.assertEqual(response_failed.code, 403)
+
+                response_json = json.loads(response.body)
+
+                staging_status_links = response_json.get("staging_order_links")
+
+                for project, link in staging_status_links.items():
+                    self.assertEqual(project, 'XYZ_123')
+
+                assert_eventually_equals(self,
+                                         timeout=5,
+                                         delay=1,
+                                         f=partial(self._get_delivery_status, link),
+                                         expected=StagingStatus.staging_successful.name)
+
+    def test_can_stage_and_deliver_batch_flowcells(self):
+        with tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/',
+                                         prefix='160930_ST-E00216_0555_BH37CWALXX_') as tmpdir1, \
+                tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/',
+                                            prefix='160930_ST-E00216_0556_BH37CWALXX_') as tmpdir2:
+            self._create_projects_dir_with_random_data(tmpdir1, 'XYZ_123')
+            self._create_projects_dir_with_random_data(tmpdir2, 'XYZ_123')
+
+            url = "/".join([self.API_BASE, "stage", "project", 'runfolders', 'XYZ_123'])
+            payload = {'delivery_mode': 'BATCH'}
+            response = self.fetch(url, method='POST', body=json.dumps(payload))
+            self.assertEqual(response.code, 202)
+
+            payload = {'delivery_mode': 'BATCH'}
+            response_failed = self.fetch(url, method='POST', body=json.dumps(payload))
+            self.assertEqual(response_failed.code, 403)
+
+            response_json = json.loads(response.body)
+
+            staging_status_links = response_json.get("staging_order_links")
+
+            for project, link in staging_status_links.items():
+                self.assertEqual(project, 'XYZ_123')
+
+            assert_eventually_equals(self,
+                                     timeout=5,
+                                     delay=1,
+                                     f=partial(self._get_delivery_status, link),
+                                     expected=StagingStatus.staging_successful.name)
+
+    def test_can_stage_and_deliver_force_flowcells(self):
+        with tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/',
+                                         prefix='160930_ST-E00216_0555_BH37CWALXX_') as tmpdir1, \
+                tempfile.TemporaryDirectory(dir='./tests/resources/runfolders/',
+                                            prefix='160930_ST-E00216_0556_BH37CWALXX_') as tmpdir2:
+            self._create_projects_dir_with_random_data(tmpdir1, 'XYZ_123')
+            self._create_projects_dir_with_random_data(tmpdir2, 'XYZ_123')
+
+            # First just stage it
+            url = "/".join([self.API_BASE, "stage", "project", 'runfolders', 'XYZ_123'])
+            payload = {'delivery_mode': 'BATCH'}
+            response = self.fetch(url, method='POST', body=json.dumps(payload))
+            self.assertEqual(response.code, 202)
+
+            # The it should be denied (since if has already been staged)
+            payload = {'delivery_mode': 'BATCH'}
+            response_failed = self.fetch(url, method='POST', body=json.dumps(payload))
+            self.assertEqual(response_failed.code, 403)
+
+            # Then it should work once force is specified.
+            payload = {'delivery_mode': 'FORCE'}
+            response_forced = self.fetch(url, method='POST', body=json.dumps(payload))
+            self.assertEqual(response_forced.code, 202)
+
+            response_json = json.loads(response_forced.body)
+
+            staging_status_links = response_json.get("staging_order_links")
+
+            for project, link in staging_status_links.items():
+                self.assertEqual(project, 'XYZ_123')
+
+            assert_eventually_equals(self,
+                                     timeout=5,
+                                     delay=1,
+                                     f=partial(self._get_delivery_status, link),
+                                     expected=StagingStatus.staging_successful.name)
+
