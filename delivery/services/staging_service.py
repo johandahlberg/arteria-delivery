@@ -10,6 +10,8 @@ from delivery.models.db_models import StagingStatus
 from delivery.exceptions import RunfolderNotFoundException, InvalidStatusException,\
     ProjectNotFoundException, TooManyProjectsFound
 
+from delivery.services.file_system_service import FileSystemService
+
 log = logging.getLogger(__name__)
 
 
@@ -39,6 +41,7 @@ class StagingService(object):
                  staging_repo,
                  runfolder_repo,
                  project_dir_repo,
+                 project_links_directory,
                  session_factory):
         """
         Instantiate a new StagingService
@@ -47,6 +50,8 @@ class StagingService(object):
         :param staging_repo: a instance of DatabaseBasedStagingRepository
         :param runfolder_repo: a instance of FileSystemBasedRunfolderRepository
         :param project_dir_repo: a instance of GeneralProjectRepository
+        :param project_links_directory: a path to a directory where links will be created temporarily
+                                        before they are rsynced into staging (for batched deliveries etc)
         :param session_factory: a factory method which can produce new sqlalchemy Session instances
         """
         self.staging_dir = staging_dir
@@ -54,6 +59,7 @@ class StagingService(object):
         self.staging_repo = staging_repo
         self.runfolder_repo = runfolder_repo
         self.project_dir_repo = project_dir_repo
+        self.project_links_directory = project_links_directory
         self.session_factory = session_factory
 
     @staticmethod
@@ -146,77 +152,11 @@ class StagingService(object):
             session.commit()
             raise e
 
-    def _validate_project_lists(self, projects_on_runfolder, projects_to_stage):
-        projects_to_stage_set = set(projects_to_stage)
-        projects_on_runfolder_set = set(projects_on_runfolder)
-        return projects_to_stage_set.issubset(projects_on_runfolder_set)
-
-    def stage_runfolder(self, runfolder_id, projects_to_stage=None, callback=None):
-        """
-        Stage a runfolder
-        :param runfolder_id: identifier (name) of runfolder that should be staged
-        :param projects_to_stage: defaults to None, otherwise only stage the project names given in this list, i.e.
-                                  ["ABC_123", "DEF_456"]
-        :return: the ids of the stage orders created, as a dict of project -> stage id.
-         This can than be used to poll for status using e.g. `get_status_of_stage_order`
-        """
-
-        runfolder = self.runfolder_repo.get_runfolder(runfolder_id)
-
-        if not runfolder:
-            raise RunfolderNotFoundException(
-                "Couldn't find runfolder matching: {}".format(runfolder_id))
-
-        names_of_project_on_runfolder = list(map(lambda x: x.name, runfolder.projects))
-
-        # If no projects have been specified, stage all projects
-        if not projects_to_stage:
-            projects_to_stage = names_of_project_on_runfolder
-
-        log.debug("Projects to stage: {}".format(projects_to_stage))
-
-        if not self._validate_project_lists(names_of_project_on_runfolder, projects_to_stage):
-            raise ProjectNotFoundException("Projects to stage: {} do not match projects on runfolder: {}".
-                                           format(projects_to_stage, names_of_project_on_runfolder))
-
-        project_and_stage_order_ids = {}
-        for project in runfolder.projects:
-            if project.name in projects_to_stage:
-                # TODO Verify that there is no currently ongoing staging order before
-                # creating a new one...
-
-                staging_order = self.staging_repo.create_staging_order(source=project.path,
-                                                                       status=StagingStatus.pending,
-                                                                       staging_target_dir=self.staging_dir)
-                log.debug("Created a staging order: {}".format(staging_order))
-                self.stage_order(staging_order)
-                project_and_stage_order_ids[project.name] = staging_order.id
-
-        return project_and_stage_order_ids
-
-    def stage_directory(self, dir_name):
-        """
-        Stage a project directory from a "general" directory
-        :param dir_name: to stage from
-        :return: a dictionary for project name -> staging id
-        """
-        known_projects = self.project_dir_repo.get_projects()
-
-        matching_project = list(filter(lambda p: p.name == dir_name, known_projects))
-
-        if not matching_project:
-            raise ProjectNotFoundException("Could not find a project with name: {}".format(dir_name))
-        if len(matching_project) > 1:
-            raise TooManyProjectsFound("Found more than one project matching name: {}. This should"
-                                      "not be possible...".format(dir()))
-
-        exact_project = matching_project[0]
-
-        staging_order = self.staging_repo.create_staging_order(source=exact_project.path,
+    def create_new_stage_order(self, path):
+        staging_order = self.staging_repo.create_staging_order(source=path,
                                                                status=StagingStatus.pending,
                                                                staging_target_dir=self.staging_dir)
-        self.stage_order(staging_order)
-        return {exact_project.name: staging_order.id}
+        return staging_order
 
     def get_stage_order_by_id(self, stage_order_id):
         """

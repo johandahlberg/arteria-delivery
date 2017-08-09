@@ -19,13 +19,10 @@ class FileSystemService(object):
         :param base_path: base path to list directories in.
         :return: a generator of paths to directories
         """
-
-        log.debug("Listing dirs in: {}".format(os.path.abspath(base_path)))
         for my_dir in os.listdir(base_path):
             dir_abs_path = os.path.abspath(os.path.join(base_path, my_dir))
 
             if os.path.isdir(dir_abs_path):
-                log.debug("Found dir: {}".format(dir_abs_path))
                 yield dir_abs_path
 
     def find_project_directories(self, projects_base_dir):
@@ -74,8 +71,36 @@ class FileSystemService(object):
     @staticmethod
     def abspath(path):
         """
-        Shaods os.path.abspath
+        Shadows os.path.abspath
         :param path: to get abspath for
         :return: abs path to file/dir as per os.path.abspath
         """
         return os.path.abspath(path)
+
+    @staticmethod
+    def symlink(source, link_name):
+        """
+        Shadows os.symlink
+        :param source: of link
+        :param link_name: the name of the link to create
+        :return: None
+        """
+        return os.symlink(source, link_name)
+
+    @staticmethod
+    def mkdir(path):
+        """
+        Shadows os.mkdir
+        :param path: to dir to create
+        :return: None
+        """
+        os.mkdir(path)
+
+    @staticmethod
+    def makedirs(path):
+        """
+        shadows os.makedirs
+        :param path: to dir to create
+        :return: None
+        """
+        os.makedirs(path)

@@ -1,181 +1,250 @@
+import unittest
+import mock
 
-import random
-from mock import MagicMock, create_autospec
+import tempfile
+import os
 
-from tornado.testing import AsyncTestCase, gen_test
-from tornado.gen import coroutine
+from delivery.exceptions import ProjectAlreadyDeliveredException
 
-from delivery.services.external_program_service import ExternalProgramService
-from delivery.services.delivery_service import MoverDeliveryService
-from delivery.models.db_models import DeliveryOrder, StagingOrder, StagingStatus, DeliveryStatus
-from delivery.models.execution import ExecutionResult, Execution
-from delivery.exceptions import InvalidStatusException, CannotParseMoverOutputException
+from delivery.models.project import RunfolderProject, GeneralProject
+from delivery.models.db_models import StagingOrder, StagingStatus, DeliverySource
+from delivery.models.delivery_modes import DeliveryMode
+from delivery.services.delivery_service import DeliveryService
 
-from tests.test_utils import MockIOLoop, assert_eventually_equals
+from delivery.services.mover_service import MoverDeliveryService
+from delivery.services.staging_service import StagingService
+from delivery.services.runfolder_service import RunfolderService
 
+from delivery.repositories.delivery_sources_repository import DatabaseBasedDeliverySourcesRepository
+from delivery.repositories.project_repository import GeneralProjectRepository
 
-class TestMoverDeliveryService(AsyncTestCase):
+class TestDeliveryService(unittest.TestCase):
+
+    runfolder_projects = [RunfolderProject(name="ABC_123",
+                                           path="/foo/160930_ST-E00216_0112_BH37CWALXX/Projects/ABC_123",
+                                           runfolder_path="/foo/160930_ST-E00216_0112_BH37CWALXX",
+                                           runfolder_name="160930_ST-E00216_0112_BH37CWALXX"),
+                          RunfolderProject(name="ABC_123",
+                                           path="/foo/160930_ST-E00216_0111_BH37CWALXX/Projects/ABC_123",
+                                           runfolder_path="/foo/160930_ST-E00216_0111_BH37CWALXX/",
+                                           runfolder_name="160930_ST-E00216_0111_BH37CWALXX")]
+
+    general_project = GeneralProject(name="ABC_123", path="/foo/bar/ABC_123")
+
+    def _compose_delivery_service(self,
+                                  mover_delivery_service=mock.create_autospec(MoverDeliveryService),
+                                  staging_service=mock.create_autospec(StagingService),
+                                  delivery_sources_repo=mock.create_autospec(DatabaseBasedDeliverySourcesRepository),
+                                  general_project_repo=mock.create_autospec(GeneralProjectRepository),
+                                  runfolder_service=mock.create_autospec(RunfolderService),
+                                  project_links_dir=mock.MagicMock()):
+        mover_delivery_service = mover_delivery_service
+        self.staging_service = staging_service
+        delivery_sources_repo = delivery_sources_repo
+        general_project_repo = general_project_repo
+        runfolder_service = runfolder_service
+        self.project_links_dir = project_links_dir
+
+        self.delivery_service = DeliveryService(mover_service=mover_delivery_service,
+                                                staging_service=self.staging_service,
+                                                delivery_sources_repo=delivery_sources_repo,
+                                                general_project_repo=general_project_repo,
+                                                runfolder_service=runfolder_service,
+                                                project_links_directory=self.project_links_dir)
 
     def setUp(self):
+        self._compose_delivery_service()
 
-        example_mover_stdout = """TestCase_31-ngi2016001-1484739218"""
+    def test__create_links_area_for_project_runfolders(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
 
-        example_moverinfo_stdout = """Delivered: Jan 19 00:23:31 [1484781811UTC]"""
+            self.delivery_service.project_links_directory = tmpdirname
 
-        self.mock_mover_runner = create_autospec(ExternalProgramService)
-        mock_process = MagicMock()
-        mock_execution = Execution(pid=random.randint(1, 1000), process_obj=mock_process)
-        self.mock_mover_runner.run.return_value = mock_execution
+            batch_nbr = 1337
+            project_link_area = self.delivery_service._create_links_area_for_project_runfolders("ABC_123",
+                                                                                                self.runfolder_projects,
+                                                                                                batch_nbr)
 
-        @coroutine
-        def wait_as_coroutine(x):
-            return ExecutionResult(stdout=example_mover_stdout, stderr="", status_code=0)
+            project_linking_area_base = os.path.join(self.delivery_service.project_links_directory,
+                                                     "ABC_123",
+                                                     str(batch_nbr))
+            self.assertEqual(project_link_area,
+                             project_linking_area_base)
 
-        self.mock_mover_runner.wait_for_execution = wait_as_coroutine
+            self.assertTrue(
+                os.path.islink(
+                    os.path.join(
+                        project_linking_area_base,
+                        "160930_ST-E00216_0112_BH37CWALXX")))
 
-        self.mock_moverinfo_runner = create_autospec(ExternalProgramService)
+            self.assertTrue(
+                os.path.islink(
+                    os.path.join(
+                        project_linking_area_base,
+                        "160930_ST-E00216_0111_BH37CWALXX")))
 
-        @coroutine
-        def mover_info_wait_as_coroutine(x):
-            return ExecutionResult(stdout=example_moverinfo_stdout, stderr="", status_code=0)
+    def test_deliver_arbitrary_directory_project(self):
 
-        self.mock_moverinfo_runner.run_and_wait = MagicMock(wraps=mover_info_wait_as_coroutine)
+        staging_service_mock = mock.create_autospec(StagingService)
+        staging_service_mock.create_new_stage_order.return_value = \
+            StagingOrder(id=1,
+                         source=self.general_project.path,
+                         status=StagingStatus.pending,
+                         staging_target='/foo/bar',
+                         size=1024
+                         )
 
-        self.mock_staging_service = MagicMock()
-        self.mock_delivery_repo = MagicMock()
+        general_project_repo_mock = mock.create_autospec(GeneralProjectRepository)
+        general_project_repo_mock.get_project.return_value = self.general_project
 
-        self.delivery_order = DeliveryOrder(id=1, delivery_source="/foo", delivery_project="TestProj")
+        delivery_sources_repo_mock = mock.create_autospec(DatabaseBasedDeliverySourcesRepository)
+        delivery_sources_repo_mock.source_exists.return_value = False
+        delivery_sources_repo_mock.create_source.return_value = DeliverySource(project_name="ABC_123",
+                                                                               source_name=self.general_project.name,
+                                                                               path=self.general_project.path)
 
-        self.mock_delivery_repo.create_delivery_order.return_value = self.delivery_order
-        self.mock_delivery_repo.get_delivery_order_by_id.return_value = self.delivery_order
+        self._compose_delivery_service(general_project_repo=general_project_repo_mock,
+                                       delivery_sources_repo=delivery_sources_repo_mock,
+                                       staging_service=staging_service_mock)
 
-        self.mock_session_factory = MagicMock()
-        self.mock_path_to_mover = "/foo/bar/"
-        self.mover_delivery_service = MoverDeliveryService(external_program_service=None,
-                                                           staging_service=self.mock_staging_service,
-                                                           delivery_repo=self.mock_delivery_repo,
-                                                           session_factory=self.mock_session_factory,
-                                                           path_to_mover=self.mock_path_to_mover)
+        result = self.delivery_service.deliver_arbitrary_directory_project("ABC_123")
+        self.assertTrue(result["ABC_123"] == 1)
 
-        # Inject separate external runner instances for the tests, since they need to return
-        # different information
-        self.mover_delivery_service.mover_external_program_service = self.mock_mover_runner
-        self.mover_delivery_service.moverinfo_external_program_service = self.mock_moverinfo_runner
+    def test_deliver_arbitrary_directory_project_force(self):
 
-        super(TestMoverDeliveryService, self).setUp()
+        staging_service_mock = mock.create_autospec(StagingService)
+        staging_service_mock.create_new_stage_order.return_value = \
+            StagingOrder(id=1,
+                         source=self.general_project.path,
+                         status=StagingStatus.pending,
+                         staging_target='/foo/bar',
+                         size=1024
+                         )
 
-    @gen_test
-    def test_deliver_by_staging_id(self):
-        staging_order = StagingOrder(source='/foo/bar', staging_target='/staging/dir/bar')
-        staging_order.status = StagingStatus.staging_successful
-        self.mock_staging_service.get_stage_order_by_id.return_value = staging_order
+        general_project_repo_mock = mock.create_autospec(GeneralProjectRepository)
+        general_project_repo_mock.get_project.return_value = self.general_project
 
-        self.mock_staging_service.get_delivery_order_by_id.return_value = self.delivery_order
+        delivery_sources_repo_mock = mock.create_autospec(DatabaseBasedDeliverySourcesRepository)
+        delivery_sources_repo_mock.source_exists.return_value = True
+        delivery_sources_repo_mock.create_source.return_value = DeliverySource(project_name="ABC_123",
+                                                                               source_name=self.general_project.name,
+                                                                               path=self.general_project.path)
 
-        res = yield self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
-                                                                      delivery_project='xyz123',
-                                                                      md5sum_file='md5sum_file')
+        self._compose_delivery_service(general_project_repo=general_project_repo_mock,
+                                       delivery_sources_repo=delivery_sources_repo_mock,
+                                       staging_service=staging_service_mock)
 
-        def _get_delivery_order():
-            return self.delivery_order.delivery_status
-        assert_eventually_equals(self, 1, _get_delivery_order, DeliveryStatus.delivery_in_progress)
-        self.mock_mover_runner.run.assert_called_once_with(['/foo/bar/to_outbox', '/foo', 'TestProj'])
+        with self.assertRaises(ProjectAlreadyDeliveredException):
+            self.delivery_service.deliver_arbitrary_directory_project("ABC_123", force_delivery=False)
 
-    @gen_test
-    def test_update_delivery_status(self):
-        delivery_order = DeliveryOrder(mover_delivery_id="TestCase_31-ngi2016001-1484739218 ",
-                                       delivery_status=DeliveryStatus.delivery_in_progress)
-        self.mock_delivery_repo.get_delivery_order_by_id.return_value = delivery_order
-        result = yield self.mover_delivery_service.update_delivery_status(self.delivery_order.id)
-        self.assertEqual(result.delivery_status, DeliveryStatus.delivery_successful)
+        result = self.delivery_service.deliver_arbitrary_directory_project("ABC_123", force_delivery=True)
+        self.assertTrue(result["ABC_123"] == 1)
 
-        self.mock_moverinfo_runner.run_and_wait.assert_called_once_with(['/foo/bar/moverinfo', '-i', 'TestCase_31-ngi2016001-1484739218 '])
+    def test_deliver_single_runfolder(self):
+        staging_service_mock = mock.create_autospec(StagingService)
+        staging_service_mock.create_new_stage_order.return_value = \
+            StagingOrder(id=1,
+                         source=self.runfolder_projects[0].path,
+                         status=StagingStatus.pending,
+                         staging_target='/foo/bar',
+                         size=1024)
+        runfolder_service_mock = mock.create_autospec(RunfolderService)
 
-    @gen_test
-    def test_deliver_by_staging_id_raises_on_non_existent_stage_id(self):
-        self.mock_staging_service.get_stage_order_by_id.return_value = None
+        def my_project_iterator(runfolder_name, only_these_projects):
+            yield self.runfolder_projects[0]
+        runfolder_service_mock.find_projects_on_runfolder = my_project_iterator
 
-        with self.assertRaises(InvalidStatusException):
+        delivery_sources_repo_mock = mock.create_autospec(DatabaseBasedDeliverySourcesRepository)
+        delivery_sources_repo_mock.source_exists.return_value = False
+        delivery_sources_repo_mock.create_source.return_value = \
+            DeliverySource(project_name="ABC_123",
+                           source_name="{}/{}".format(
+                               self.runfolder_projects[0].runfolder_name,
+                               self.runfolder_projects[0].name),
+                           path=self.general_project.path)
 
-            yield self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
-                                                                    delivery_project='foo',
-                                                                    md5sum_file='md5sum_file')
+        self._compose_delivery_service(runfolder_service=runfolder_service_mock,
+                                       delivery_sources_repo=delivery_sources_repo_mock,
+                                       staging_service=staging_service_mock)
 
-    @gen_test
-    def test_deliver_by_staging_id_raises_on_non_successful_stage_id(self):
+        result = self.delivery_service.deliver_single_runfolder(runfolder_name="160930_ST-E00216_0112_BH37CWALXX",
+                                                                only_these_projects=None,
+                                                                force_delivery=False)
+        self.assertEqual(result["ABC_123"], 1)
 
-        staging_order = StagingOrder()
-        staging_order.status = StagingStatus.staging_failed
-        self.mock_staging_service.get_stage_order_by_id.return_value = staging_order
+    def test_deliver_single_runfolder_force(self):
+        staging_service_mock = mock.create_autospec(StagingService)
+        staging_service_mock.create_new_stage_order.return_value = \
+            StagingOrder(id=1,
+                         source=self.runfolder_projects[0].path,
+                         status=StagingStatus.pending,
+                         staging_target='/foo/bar',
+                         size=1024)
+        runfolder_service_mock = mock.create_autospec(RunfolderService)
 
-        with self.assertRaises(InvalidStatusException):
+        def my_project_iterator(runfolder_name, only_these_projects):
+            yield self.runfolder_projects[0]
+        runfolder_service_mock.find_projects_on_runfolder = my_project_iterator
 
-            yield self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
-                                                                    delivery_project='foo',
-                                                                    md5sum_file='md5sum_file')
+        delivery_sources_repo_mock = mock.create_autospec(DatabaseBasedDeliverySourcesRepository)
+        delivery_sources_repo_mock.source_exists.return_value = True
+        delivery_sources_repo_mock.create_source.return_value = \
+            DeliverySource(project_name="ABC_123",
+                           source_name="{}/{}".format(
+                               self.runfolder_projects[0].runfolder_name,
+                               self.runfolder_projects[0].name),
+                           path=self.general_project.path)
 
-    def test_get_status_of_delivery_order(self):
-        delivery_order = DeliveryOrder(id=1,
-                                       delivery_source='src',
-                                       delivery_project='xyz123',
-                                       delivery_status=DeliveryStatus.mover_processing_delivery,
-                                       staging_order_id=11,
-                                       md5sum_file='file')
-        self.mock_delivery_repo.get_delivery_order_by_id.return_value = delivery_order
-        actual = self.mover_delivery_service.get_status_of_delivery_order(1)
-        self.assertEqual(actual, DeliveryStatus.mover_processing_delivery)
+        self._compose_delivery_service(runfolder_service=runfolder_service_mock,
+                                       delivery_sources_repo=delivery_sources_repo_mock,
+                                       staging_service=staging_service_mock)
 
-    def test_delivery_order_by_id(self):
-        delivery_order = DeliveryOrder(id=1,
-                                       delivery_source='src',
-                                       delivery_project='xyz123',
-                                       delivery_status=DeliveryStatus.mover_processing_delivery,
-                                       staging_order_id=11,
-                                       md5sum_file='file')
-        self.mock_delivery_repo.get_delivery_order_by_id.return_value = delivery_order
-        actual = self.mover_delivery_service.get_delivery_order_by_id(1)
-        self.assertEqual(actual.id, 1)
+        with self.assertRaises(ProjectAlreadyDeliveredException):
+            self.delivery_service.deliver_single_runfolder(runfolder_name="160930_ST-E00216_0112_BH37CWALXX",
+                                                           only_these_projects=None,
+                                                           force_delivery=False)
+        result = self.delivery_service.deliver_single_runfolder(runfolder_name="160930_ST-E00216_0112_BH37CWALXX",
+                                                                only_these_projects=None,
+                                                                force_delivery=True)
+        self.assertEqual(result["ABC_123"], 1)
 
-    def test_possible_to_delivery_by_staging_id_and_skip_mover(self):
+    def test_deliver_all_runfolders_for_project(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
 
-        staging_order = StagingOrder(source='/foo/bar', staging_target='/staging/dir/bar')
-        staging_order.status = StagingStatus.staging_successful
-        self.mock_staging_service.get_stage_order_by_id.return_value = staging_order
+            staging_service_mock = mock.create_autospec(StagingService)
+            staging_service_mock.create_new_stage_order.return_value = \
+                StagingOrder(id=1,
+                             source=os.path.join(tmpdirname, "ABC_123", "1"),
+                             status=StagingStatus.pending,
+                             staging_target='/foo/bar',
+                             size=1024)
+            runfolder_service_mock = mock.create_autospec(RunfolderService)
 
-        self.mock_staging_service.get_delivery_order_by_id.return_value = self.delivery_order
+            def my_project_iterator(project_name):
+                for proj in self.runfolder_projects:
+                    yield proj
+            runfolder_service_mock.find_runfolders_for_project = my_project_iterator
 
-        self.mover_delivery_service.deliver_by_staging_id(staging_id=1,
-                                                          delivery_project='xyz123',
-                                                          md5sum_file='md5sum_file',
-                                                          skip_mover=True)
+            delivery_sources_repo_mock = mock.create_autospec(DatabaseBasedDeliverySourcesRepository)
+            delivery_sources_repo_mock.source_exists.return_value = False
+            delivery_sources_repo_mock.find_highest_batch_nbr.return_value = 1
+            delivery_sources_repo_mock.create_source.return_value = \
+                DeliverySource(project_name="ABC_123",
+                               source_name="{}/{}".format(
+                                   "ABC_123",
+                                   "batch1"),
+                               path=self.general_project.path,
+                               batch=1)
 
-        def _get_delivery_order():
-            return self.delivery_order.delivery_status
-        assert_eventually_equals(self, 1, _get_delivery_order, DeliveryStatus.delivery_skipped)
+            self._compose_delivery_service(runfolder_service=runfolder_service_mock,
+                                           delivery_sources_repo=delivery_sources_repo_mock,
+                                           staging_service=staging_service_mock,
+                                           project_links_dir=tmpdirname)
 
-    def test__parse_mover_id_from_mover_output(self):
-        example_mover_output = """TestCase_31-ngi2016001-1484739218"""
+            result = self.delivery_service.deliver_all_runfolders_for_project(project_name="ABC_123",
+                                                                              mode=DeliveryMode.CLEAN)
+            self.assertEqual(result["ABC_123"], 1)
 
-        actual = self.mover_delivery_service._parse_mover_id_from_mover_output(example_mover_output)
-        self.assertEqual(actual, "TestCase_31-ngi2016001-1484739218")
 
-    def test__parse_mover_id_from_mover_output_with_dash(self):
-        example_mover_output = """TestCase-31-ngi2016001-1484739218"""
-
-        actual = self.mover_delivery_service._parse_mover_id_from_mover_output(example_mover_output)
-        self.assertEqual(actual, "TestCase-31-ngi2016001-1484739218")
-
-    def test__parse_mover_id_from_mover_output_raises_on_invalid_output(self):
-        example_mover_output = """Found receiver delivery00001 with end date: 2017-03-11
-                                  TestCase_31 queued for delivery to delivery00001, id = TestCase_31-ngi2016001-1484739218"""
-        with self.assertRaises(CannotParseMoverOutputException):
-            self.mover_delivery_service._parse_mover_id_from_mover_output(example_mover_output)
-
-    def test__parse_status_from_mover_info_result(self):
-        example_moverinfo_stdout = """Delivered: Jan 19 00:23:31 [1484781811UTC]"""
-        actual = self.mover_delivery_service._parse_status_from_mover_info_result(example_moverinfo_stdout)
-        self.assertEqual(actual, "Delivered")
-
-    def test__parse_status_from_mover_info_result_raises_on_invalid_output(self):
-        with self.assertRaises(CannotParseMoverOutputException):
-            self.mover_delivery_service._parse_status_from_mover_info_result("Invalid input...")
+if __name__ == '__main__':
+    unittest.main()

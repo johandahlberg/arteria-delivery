@@ -3,30 +3,7 @@ import os
 
 from delivery.services.file_system_service import FileSystemService
 from delivery.models.project import GeneralProject
-
-
-class RunfolderProjectRepository(object):
-    """
-    Repository for materializing project instances
-    """
-
-    def __init__(self, runfolder_repository):
-        """
-        Instantiate a new repository
-        :param runfolder_repository: a `FileSystemBasedRunfolderRepository` or something the implements the
-        `get_runfolders` method
-        """
-        self.runfolder_repository = runfolder_repository
-
-    def get_projects(self):
-        """
-        Pick up all projects
-        :return: a generator of project instances
-        """
-        for runfolder in self.runfolder_repository.get_runfolders():
-            if runfolder.projects:
-                for project in runfolder.projects:
-                    yield project
+from delivery.exceptions import TooManyProjectsFound, ProjectNotFoundException
 
 
 class GeneralProjectRepository(object):
@@ -54,3 +31,21 @@ class GeneralProjectRepository(object):
             abs_path = self.filesystem_service.abspath(directory)
             yield GeneralProject(name=self.filesystem_service.basename(abs_path),
                                  path=abs_path)
+
+    def get_project(self, project_name):
+        """
+        TODO
+        :param project_name:
+        :return:
+        """
+        known_projects = self.get_projects()
+        matching_project = list(filter(lambda p: p.name == project_name, known_projects))
+
+        if not matching_project:
+            raise ProjectNotFoundException("Could not find a project with name: {}".format(dir_name))
+        if len(matching_project) > 1:
+            raise TooManyProjectsFound("Found more than one project matching name: {}. This should"
+                                       "not be possible...".format(dir()))
+
+        exact_project = matching_project[0]
+        return exact_project

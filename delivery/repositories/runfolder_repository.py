@@ -40,7 +40,9 @@ class FileSystemBasedRunfolderRepository(object):
                 return RunfolderProject(
                     name=os.path.basename(d),
                     path=os.path.join(projects_base_dir, d),
-                    runfolder_path=runfolder.path)
+                    runfolder_path=runfolder.path,
+                    runfolder_name=runfolder.name
+                )
 
             # There are scenarios where there are no project directories in the runfolder,
             # i.e. when fastq files have not yet been divided into projects
@@ -90,3 +92,18 @@ class FileSystemBasedRunfolderRepository(object):
             return matching_name[0]
         else:
             return None
+
+    def get_projects(self):
+        """
+        Pick up all projects
+        :return: a generator of project instances
+        """
+        for runfolder in self.get_runfolders():
+            if runfolder.projects:
+                for project in runfolder.projects:
+                    yield project
+
+    def get_project(self, project_name):
+        for project in self.get_projects():
+            if project.name == project_name:
+                yield project

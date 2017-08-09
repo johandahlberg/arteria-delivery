@@ -1,6 +1,7 @@
 import unittest
 
 from delivery.models.runfolder import Runfolder
+from delivery.models.project import RunfolderProject
 from delivery.repositories.runfolder_repository import FileSystemBasedRunfolderRepository
 
 from tests.test_utils import FAKE_RUNFOLDERS, mock_file_system_service, fake_directories, fake_projects
@@ -41,3 +42,23 @@ class TestRunfolderRepository(unittest.TestCase):
         actual_runfolder = self.repo.get_runfolder(runfolder_name)
         self.assertIsInstance(actual_runfolder, Runfolder)
         self.assertEqual(actual_runfolder.name, runfolder_name)
+
+    def test_get_projects(self):
+        actual_projects = list(self.repo.get_projects())
+        self.assertTrue(len(actual_projects) == 4)
+
+    def test_get_project(self):
+        project_name = "ABC_123"
+        expected_projects = [RunfolderProject(name="ABC_123",
+                                              runfolder_path="/foo/160930_ST-E00216_0111_BH37CWALXX",
+                                              path="/foo/160930_ST-E00216_0111_BH37CWALXX/Projects/ABC_123",
+                                              runfolder_name="160930_ST-E00216_0111_BH37CWALXX"),
+                             RunfolderProject(name="ABC_123",
+                                              runfolder_path="/foo/160930_ST-E00216_0112_BH37CWALXX",
+                                              path="/foo/160930_ST-E00216_0112_BH37CWALXX/Projects/ABC_123",
+                                              runfolder_name="160930_ST-E00216_0112_BH37CWALXX")]
+
+        actual_projects = list(self.repo.get_project(project_name))
+
+        self.assertEqual(len(actual_projects), 2)
+        self.assertEqual(actual_projects, expected_projects)

@@ -16,7 +16,7 @@ class DeliverByStageIdHandler(ArteriaDeliveryBaseHandler):
     """
 
     def initialize(self, **kwargs):
-        self.delivery_service = kwargs["delivery_service"]
+        self.mover_delivery_service = kwargs["mover_delivery_service"]
         super(DeliverByStageIdHandler, self).initialize(kwargs)
 
     @coroutine
@@ -35,10 +35,10 @@ class DeliverByStageIdHandler(ArteriaDeliveryBaseHandler):
             log.debug("Will not skip running mover!")
             skip_mover = False
 
-        delivery_id = yield self.delivery_service.deliver_by_staging_id(staging_id=staging_id,
-                                                                        delivery_project=delivery_project_id,
-                                                                        md5sum_file=md5sum_file,
-                                                                        skip_mover=skip_mover)
+        delivery_id = yield self.mover_delivery_service.deliver_by_staging_id(staging_id=staging_id,
+                                                                              delivery_project=delivery_project_id,
+                                                                              md5sum_file=md5sum_file,
+                                                                              skip_mover=skip_mover)
 
         status_end_point = "{0}://{1}{2}".format(self.request.protocol,
                                                  self.request.host,
@@ -52,12 +52,12 @@ class DeliverByStageIdHandler(ArteriaDeliveryBaseHandler):
 class DeliveryStatusHandler(ArteriaDeliveryBaseHandler):
 
     def initialize(self, **kwargs):
-        self.delivery_service = kwargs["delivery_service"]
+        self.mover_delivery_service = kwargs["mover_delivery_service"]
         super(DeliveryStatusHandler, self).initialize(kwargs)
 
     @coroutine
     def get(self, delivery_order_id):
-        delivery_order = yield self.delivery_service.update_delivery_status(delivery_order_id)
+        delivery_order = yield self.mover_delivery_service.update_delivery_status(delivery_order_id)
 
         self.write_json({'id': delivery_order.id,
                          'status': delivery_order.delivery_status.name,

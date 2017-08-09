@@ -2,22 +2,11 @@
 import unittest
 from mock import MagicMock
 
-from delivery.models.project import GeneralProject
-from delivery.repositories.project_repository import RunfolderProjectRepository, GeneralProjectRepository
+from delivery.models.project import GeneralProject, RunfolderProject
+from delivery.repositories.project_repository import GeneralProjectRepository
 from delivery.services.file_system_service import FileSystemService
 
 from tests.test_utils import FAKE_RUNFOLDERS
-
-
-class TestRunfolderProjectRepository(unittest.TestCase):
-
-    runfolder_respository = MagicMock()
-    runfolder_respository.get_runfolders.return_value = FAKE_RUNFOLDERS
-    repo = RunfolderProjectRepository(runfolder_repository=runfolder_respository)
-
-    def test_get_projects(self):
-        actual_projects = list(self.repo.get_projects())
-        self.assertTrue(len(actual_projects) == 4)
 
 
 class TestGeneralProjectRepository(unittest.TestCase):
