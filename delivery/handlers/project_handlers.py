@@ -1,6 +1,7 @@
 
 from delivery.handlers import *
 from delivery.handlers.utility_handlers import ArteriaDeliveryBaseHandler
+from delivery.exceptions import ProjectNotFoundException
 
 
 class ProjectBaseHandler(ArteriaDeliveryBaseHandler):
@@ -10,7 +11,21 @@ class ProjectBaseHandler(ArteriaDeliveryBaseHandler):
 
     def initialize(self, **kwargs):
         self.runfolder_repo = kwargs["runfolder_repo"]
+        self.best_practice_analysis_service = kwargs["best_practice_analysis_service"]
         super(ProjectBaseHandler, self).initialize(kwargs)
+
+
+class BestPracticeProjectSampleHandler(ProjectBaseHandler):
+    def get(self, project_name):
+        try:
+            samples = list(self.best_practice_analysis_service.get_samples(project_name))
+            if samples:
+                self.write_list_of_models_as_json(samples, key="samples")
+            else:
+                self.send_error(NOT_FOUND)
+        except ProjectNotFoundException:
+            self.send_error(NOT_FOUND)
+
 
 
 class ProjectHandler(ProjectBaseHandler):

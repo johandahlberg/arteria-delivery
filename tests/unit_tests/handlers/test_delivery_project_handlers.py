@@ -16,6 +16,7 @@ class TestProjectHandlers(AsyncHTTPTestCase):
     API_BASE = "/api/1.0"
 
     mock_runfolder_repo = MagicMock()
+    best_practice_service = MagicMock()
     return_projects = True
 
     def get_app(self):
@@ -35,7 +36,8 @@ class TestProjectHandlers(AsyncHTTPTestCase):
         return Application(
             routes(
                 config=DummyConfig(),
-                runfolder_repo=self.mock_runfolder_repo))
+                runfolder_repo=self.mock_runfolder_repo,
+                best_practice_analysis_service=self.best_practice_service))
 
     def test_get_projects(self):
         response = self.fetch(self.API_BASE + "/projects")
