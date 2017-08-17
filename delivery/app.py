@@ -49,7 +49,7 @@ def routes(**kwargs):
         url(r"/api/1.0/projects", ProjectHandler, name="projects", kwargs=kwargs),
         url(r"/api/1.0/runfolders/(.+)/projects", ProjectsForRunfolderHandler,
             name="projects_for_runfolder", kwargs=kwargs),
-        url(r"/api/1.0/project/(.+)/best_practice_samples", BestPracticeProjectSampleHandler,
+        url(r"/api/1.0/project/([^/]+)/best_practice_samples$", BestPracticeProjectSampleHandler,
             name="best_practice_samples", kwargs=kwargs),
 
         url(r"/api/1.0/stage/project/runfolders/(.+)", StagingProjectRunfoldersHandler,

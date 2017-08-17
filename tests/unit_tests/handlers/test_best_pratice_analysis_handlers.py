@@ -43,4 +43,6 @@ class TestBestPracticeAnalysisHandlers(AsyncHTTPTestCase):
         response = self.fetch(self.API_BASE + "/project/foo/best_practice_samples")
         self.assertEqual(response.code, 404)
 
-
+    def test_get_samples_slashes_in_project_name(self):
+        response = self.fetch(self.API_BASE + "/project/DEF_123/notvalid/best_practice_samples")
+        self.assertEqual(response.code, 404)
