@@ -13,7 +13,8 @@ from arteria.web.app import AppService
 
 from delivery.handlers.utility_handlers import VersionHandler
 from delivery.handlers.runfolder_handlers import RunfolderHandler
-from delivery.handlers.project_handlers import ProjectHandler, ProjectsForRunfolderHandler
+from delivery.handlers.project_handlers import ProjectHandler, ProjectsForRunfolderHandler, \
+    BestPracticeProjectSampleHandler
 from delivery.handlers.delivery_handlers import DeliverByStageIdHandler, DeliveryStatusHandler
 from delivery.handlers.staging_handlers import StagingRunfolderHandler, StagingHandler,\
     StageGeneralDirectoryHandler, StagingProjectRunfoldersHandler
@@ -31,6 +32,7 @@ from delivery.services.staging_service import StagingService
 from delivery.services.file_system_service import FileSystemService
 from delivery.services.delivery_service import DeliveryService
 from delivery.services.runfolder_service import RunfolderService
+from delivery.services.best_practice_analysis_service import BestPracticeAnalysisService
 
 
 def routes(**kwargs):
@@ -47,6 +49,8 @@ def routes(**kwargs):
         url(r"/api/1.0/projects", ProjectHandler, name="projects", kwargs=kwargs),
         url(r"/api/1.0/runfolders/(.+)/projects", ProjectsForRunfolderHandler,
             name="projects_for_runfolder", kwargs=kwargs),
+        url(r"/api/1.0/project/([^/]+)/best_practice_samples$", BestPracticeProjectSampleHandler,
+            name="best_practice_samples", kwargs=kwargs),
 
         url(r"/api/1.0/stage/project/runfolders/(.+)", StagingProjectRunfoldersHandler,
             name="stage_multiple_runfolders_one_project", kwargs=kwargs),
@@ -151,12 +155,16 @@ def compose_application(config):
                                        runfolder_service=runfolder_service,
                                        project_links_directory=project_links_directory)
 
+    best_practice_analysis_service = BestPracticeAnalysisService(general_project_repo)
+
     return dict(config=config,
                 runfolder_repo=runfolder_repo,
                 external_program_service=external_program_service,
                 staging_service=staging_service,
                 mover_delivery_service=mover_delivery_service,
-                delivery_service=delivery_service)
+                delivery_service=delivery_service,
+                general_project_repo=general_project_repo,
+                best_practice_analysis_service=best_practice_analysis_service)
 
 
 def start():
