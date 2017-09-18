@@ -83,8 +83,10 @@ class StagingService(object):
         # thread, there fore it is re-materialized in here...
         staging_order = staging_repo.get_staging_order_by_id(staging_order_id, session)
         try:
-
-            cmd = ['rsync', '--stats', '-r', '--copy-links', staging_order.source, staging_order.staging_target]
+            # Ensure that the source has a trailing slash, since we want
+            # rsync to move the content of the folder, not the folder itself
+            source_with_trailing_slash = "{}/".format(staging_order.source)
+            cmd = ['rsync', '--stats', '-r', '--copy-links', source_with_trailing_slash, staging_order.staging_target]
 
             execution = external_program_service.run(cmd)
 
