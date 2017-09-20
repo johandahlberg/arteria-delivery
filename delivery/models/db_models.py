@@ -78,7 +78,7 @@ class StagingOrder(SQLAlchemyBase):
     pid = Column(Integer)
 
     def get_staging_path(self):
-        return os.path.join(self.staging_target, os.path.basename(os.path.abspath(self.source)))
+        return os.path.join(self.staging_target)
 
     def __repr__(self):
         return "Staging order: {id: %s, source: %s, status: %s, pid: %s }" % (str(self.id),
